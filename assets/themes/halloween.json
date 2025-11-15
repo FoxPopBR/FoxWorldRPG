@@ -1,0 +1,54 @@
+{
+    "name": "Tema de Halloween",
+    "version": "1.0", 
+    "author": "Sistema",
+    
+    "colors": {
+        "background": [20, 10, 25],
+        "ui_background": [40, 20, 45],
+        "ui_border": [200, 100, 0],
+        "text": [255, 255, 255],
+        "text_secondary": [220, 200, 200],
+        "highlight": [255, 140, 0],
+        "button_normal": [150, 75, 0],
+        "button_hover": [200, 100, 0],
+        "button_disabled": [70, 35, 0],
+        "warning": [255, 165, 0],
+        "error": [200, 60, 0],
+        "success": [100, 200, 50]
+    },
+    
+    "fonts": {
+        "title": "fonts/halloween_font.ttf",
+        "menu": "fonts/halloween_font.ttf", 
+        "button": "fonts/halloween_font.ttf",
+        "hud": null
+    },
+    
+    "images": {
+        "background": "images/themes/halloween/background.jpg",
+        "button_normal": "images/themes/halloween/button_normal.png",
+        "button_hover": "images/themes/halloween/button_hover.png",
+        "button_disabled": "images/themes/halloween/button_disabled.png",
+        "logo": "images/themes/halloween/logo.png"
+    },
+    
+    "sounds": {
+        "button_click": "sounds/themes/halloween/click.wav",
+        "button_hover": "sounds/themes/halloween/hover.wav", 
+        "background_music": "sounds/themes/halloween/music.mp3"
+    },
+    
+    "animations": {
+        "transition_speed": 0.4,
+        "button_scale_on_hover": 1.06
+    },
+    
+    "ui": {
+        "border_radius": 10,
+        "border_width": 2,
+        "shadow_enabled": true,
+        "shadow_color": [0, 0, 0, 180],
+        "shadow_offset": [2, 2]
+    }
+}

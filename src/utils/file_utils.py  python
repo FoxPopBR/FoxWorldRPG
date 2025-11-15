@@ -1,0 +1,54 @@
+import os
+import json
+from pathlib import Path
+from typing import Dict, Any, List
+
+class FileUtils:
+    """Utilitários para manipulação de arquivos"""
+    
+    @staticmethod
+    def ensure_directory(path: str) -> Path:
+        """Garante que um diretório existe"""
+        path_obj = Path(path)
+        path_obj.mkdir(parents=True, exist_ok=True)
+        return path_obj
+    
+    @staticmethod
+    def load_json(file_path: str, default: Any = None) -> Any:
+        """Carrega um arquivo JSON com fallback"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return default
+    
+    @staticmethod
+    def save_json(file_path: str, data: Any) -> bool:
+        """Salva dados em um arquivo JSON"""
+        try:
+            FileUtils.ensure_directory(Path(file_path).parent)
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
+            return True
+        except Exception as e:
+            print(f"Erro ao salvar JSON {file_path}: {e}")
+            return False
+    
+    @staticmethod
+    def get_files_with_extension(directory: str, extension: str) -> List[Path]:
+        """Lista arquivos com uma extensão específica"""
+        path = Path(directory)
+        if not path.exists():
+            return []
+        return list(path.glob(f"*.{extension}"))
+    
+    @staticmethod
+    def copy_theme_resources(theme_name: str, source_dir: str, target_dir: str):
+        """Copia recursos de tema se não existirem"""
+        source_path = Path(source_dir) / theme_name
+        target_path = Path(target_dir) / theme_name
+        
+        if source_path.exists() and not target_path.exists():
+            import shutil
+            shutil.copytree(source_path, target_path)
+            print(f"Recursos do tema '{theme_name}' copiados")

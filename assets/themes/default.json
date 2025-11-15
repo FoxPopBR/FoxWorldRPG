@@ -1,0 +1,48 @@
+{
+    "name": "Tema Padrão",
+    "version": "1.0",
+    "author": "Sistema",
+    "colors": {
+        "background": [30, 30, 45],
+        "ui_background": [45, 45, 60],
+        "ui_border": [70, 130, 180],
+        "text": [255, 255, 255],
+        "text_secondary": [200, 200, 200],
+        "highlight": [100, 160, 210],
+        "button_normal": [70, 130, 180],
+        "button_hover": [100, 160, 210],
+        "button_disabled": [50, 50, 70],
+        "warning": [220, 120, 60],
+        "error": [220, 80, 60],
+        "success": [60, 180, 75]
+    },
+    "fonts": {
+        "title": null,
+        "menu": null,
+        "button": null,
+        "hud": null
+    },
+    "images": {
+        "background": null,
+        "button_normal": null,
+        "button_hover": null,
+        "button_disabled": null,
+        "logo": null
+    },
+    "sounds": {
+        "button_click": null,
+        "button_hover": null,
+        "background_music": null
+    },
+    "animations": {
+        "transition_speed": 0.3,
+        "button_scale_on_hover": 1.05
+    },
+    "ui": {
+        "border_radius": 8,
+        "border_width": 2,
+        "shadow_enabled": true,
+        "shadow_color": [0, 0, 0, 128],
+        "shadow_offset": [2, 2]
+    }
+}

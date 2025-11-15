@@ -1,0 +1,54 @@
+{
+    "name": "Tema de Natal",
+    "version": "1.0",
+    "author": "Sistema",
+    
+    "colors": {
+        "background": [10, 30, 15],
+        "ui_background": [20, 50, 25],
+        "ui_border": [220, 50, 50],
+        "text": [255, 255, 255],
+        "text_secondary": [200, 230, 200],
+        "highlight": [255, 80, 80],
+        "button_normal": [220, 50, 50],
+        "button_hover": [255, 80, 80],
+        "button_disabled": [80, 30, 30],
+        "warning": [255, 200, 50],
+        "error": [255, 80, 80],
+        "success": [50, 200, 80]
+    },
+    
+    "fonts": {
+        "title": "fonts/christmas_font.ttf",
+        "menu": "fonts/christmas_font.ttf",
+        "button": "fonts/christmas_font.ttf",
+        "hud": null
+    },
+    
+    "images": {
+        "background": "images/themes/christmas/background.jpg",
+        "button_normal": "images/themes/christmas/button_normal.png",
+        "button_hover": "images/themes/christmas/button_hover.png",
+        "button_disabled": "images/themes/christmas/button_disabled.png",
+        "logo": "images/themes/christmas/logo.png"
+    },
+    
+    "sounds": {
+        "button_click": "sounds/themes/christmas/click.wav",
+        "button_hover": "sounds/themes/christmas/hover.wav",
+        "background_music": "sounds/themes/christmas/music.mp3"
+    },
+    
+    "animations": {
+        "transition_speed": 0.3,
+        "button_scale_on_hover": 1.08
+    },
+    
+    "ui": {
+        "border_radius": 12,
+        "border_width": 3,
+        "shadow_enabled": true,
+        "shadow_color": [0, 0, 0, 160],
+        "shadow_offset": [3, 3]
+    }
+}
