@@ -1,4 +1,4 @@
-
+<pre>
 🦊 FoxWorld RPG - Documentação Técnica Completa
 
 📋 Índice
@@ -820,3 +820,4 @@ Músicas e efeitos sonoros adicionais
 Balanceamento de dificuldade
 
 Testes extensivos e correção de bugs
+</pre>
