@@ -529,6 +529,7 @@ json
         "shadow_offset": [3, 3]
     }
 }
+
 O tema será detectado automaticamente na próxima execução.
 
 7.3. Adicionando Novas Configurações
@@ -791,6 +792,7 @@ Interação com NPCs e objetos
 Sistema de descoberta de locais secretos
 
 Fase 3: Sistemas de Conteúdo
+
 1. Sistema de Progressão
 Experiência e níveis
 
