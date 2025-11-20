@@ -1,102 +1,107 @@
 import pygame
-from typing import List
-from src.ui.button import Button
-from src.ui.responsive_ui import ResponsiveUI
-from src.ui.button_manager import ButtonManager
+from .button import Button
+from .responsive_ui import ResponsiveUI
+from .button_manager import ButtonManager
 
 class MainMenu:
-    """Menu principal do jogo com suporte a temas"""
-    
     def __init__(self, game):
         self.game = game
-        self.buttons: List[Button] = []
-        self.background_image = None
+        self.buttons = []
         self._create_buttons()
-        self._load_background()
-        
-    def _load_background(self):
-        """Carrega a imagem de fundo do tema"""
-        self.background_image = self.game.game_config.get_image("background")
-        
+    
     def _create_buttons(self):
-        """Cria os botões do menu principal com posições base (1080p)"""
-        # Posições base para 1920x1080
-        base_button_width = 400
-        base_button_height = 80
+        """Cria os botões do menu principal"""
+        self.buttons.clear()
         
-        # Posições Y base (para 1080p)
-        base_positions = [400, 500, 600, 700]  # Novo Jogo, Carregar, Configurações, Sair
+        # Configurações dos botões
+        button_width = 300
+        button_height = 70
+        start_y = 400
+        spacing = 20
         
-        button_configs = [
-            ("Novo Jogo", self._on_new_game),
-            ("Carregar Jogo", self._on_load_game),
-            ("Configurações", self._on_settings),
-            ("Sair", self._on_quit)
+        # Botões do menu
+        buttons_config = [
+            ("NOVO JOGO", self._new_game),
+            ("CONFIGURAÇÕES", self._settings),
+            ("SAIR", self._quit)
         ]
         
-        for i, (text, action) in enumerate(button_configs):
-            # Botão centralizado horizontalmente, posição Y base
+        # Calcular posição centralizada
+        total_height = (button_height * len(buttons_config)) + (spacing * (len(buttons_config) - 1))
+        start_y = (1080 - total_height) // 2
+        
+        for i, (text, action) in enumerate(buttons_config):
+            y_pos = start_y + i * (button_height + spacing)
+            x_pos = (1920 - button_width) // 2
+            
             button = Button(
-                ResponsiveUI.BASE_WIDTH // 2 - base_button_width // 2,  # X centralizado
-                base_positions[i],  # Y base
-                base_button_width,
-                base_button_height,
-                text, action, 
-                base_font_size=36,
-                image_key="button_normal"  # Usa imagem do tema
+                x_pos, y_pos, button_width, button_height,
+                text, action, font_size=28
             )
             self.buttons.append(button)
-            
-    def _on_new_game(self):
-        """Inicia a criação de um novo personagem"""
+    
+    def _new_game(self):
+        """Inicia um novo jogo"""
+        print("🎮 Iniciando novo jogo...")
         from src.states.character_creation_state import CharacterCreationState
         self.game.state_manager.change_state(CharacterCreationState(self.game))
-        
-    def _on_load_game(self):
-        print("Carregando jogo...")
-        # TODO: Implementar carregamento
-        
-    def _on_settings(self):
+    
+    def _settings(self):
+        """Abre as configurações"""
+        print("⚙️ Abrindo configurações...")
         from src.states.settings_state import SettingsState
         self.game.state_manager.push_state(SettingsState(self.game))
-        
-    def _on_quit(self):
+    
+    def _quit(self):
+        """Sai do jogo"""
+        print("👋 Saindo do jogo...")
         self.game.running = False
-        
+    
     def handle_event(self, event):
-        # Usar ButtonManager para processar cliques
-        if ButtonManager.handle_button_click(self.buttons, event):
-            return  # Um botão foi clicado
+        """Processa eventos do menu"""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.game.running = False
+            elif event.key == pygame.K_RETURN:
+                self._new_game()
+            elif event.key == pygame.K_DOWN:
+                self._focus_next_button()
+            elif event.key == pygame.K_UP:
+                self._focus_previous_button()
         
+        # CORREÇÃO: Usar ButtonManager para processar cliques
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            ButtonManager.handle_button_click(self.buttons, event, self.game)
+    
+    def _focus_next_button(self):
+        """Foca no próximo botão (para navegação por teclado)"""
+        pass
+    
+    def _focus_previous_button(self):
+        """Foca no botão anterior (para navegação por teclado)"""
+        pass
+    
     def update(self):
-        # Usar ButtonManager para atualizar botões
-        ButtonManager.update_buttons(self.buttons, self.game)
-            
+        """Atualiza o estado do menu"""
+        mouse_pos = pygame.mouse.get_pos()
+        for button in self.buttons:
+            button.update(mouse_pos, self.game)
+    
     def render(self, surface):
-        screen_width, screen_height = surface.get_size()
+        """Renderiza o menu"""
+        # Fundo
+        surface.fill(self.game.game_config.get_color('background'))
         
-        # Fundo - imagem ou cor sólida
-        if self.background_image:
-            # Escalar imagem de fundo para a tela
-            scaled_bg = pygame.transform.scale(self.background_image, (screen_width, screen_height))
-            surface.blit(scaled_bg, (0, 0))
-        else:
-            # Fallback para cor sólida
-            surface.fill(self.game.game_config.get_color('background'))
+        # Título
+        title_font = self.game.game_config.get_font('title', 72)
+        title_text = title_font.render("FOXWORLD RPG", True, (255, 255, 255))
+        surface.blit(title_text, (1920//2 - title_text.get_width()//2, 200))
         
-        # Logo do tema (se existir)
-        logo_image = self.game.game_config.get_image("logo")
-        if logo_image:
-            logo_rect = logo_image.get_rect(center=(screen_width//2, ResponsiveUI.scale_value(150, screen_width, screen_height)))
-            surface.blit(logo_image, logo_rect)
-        else:
-            # Título padrão
-            title_font_size = ResponsiveUI.scale_font_size(74, screen_width, screen_height)
-            title_font = self.game.game_config.get_font('title', title_font_size)
-            title_text = title_font.render("FoxWorld RPG", True, self.game.game_config.get_color('text'))
-            title_rect = title_text.get_rect(center=(screen_width//2, 
-                                                   ResponsiveUI.scale_value(150, screen_width, screen_height)))
-            surface.blit(title_text, title_rect)
+        # Subtítulo
+        subtitle_font = self.game.game_config.get_font('menu', 24)
+        subtitle_text = subtitle_font.render("Uma Aventura Épica", True, (200, 200, 200))
+        surface.blit(subtitle_text, (1920//2 - subtitle_text.get_width()//2, 300))
         
-        # Botões usando ButtonManager
-        ButtonManager.render_buttons(self.buttons, surface, self.game.game_config)
+        # Renderizar botões
+        for button in self.buttons:
+            button.render(surface, self.game.game_config)

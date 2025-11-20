@@ -1,0 +1,205 @@
+🦊 FoxWorld RPG - Documentação Técnica Completa (Atualizada)
+
+📋 Índice
+
+1. Visão Geral do Projeto
+2. Arquitetura do Sistema
+3. Estrutura de Arquivos
+4. Componentes Principais
+5. Sistemas Implementados
+6. Estrutura de Dados Detalhada (Banco de Dados)
+7. Guia de Desenvolvimento
+8. Exemplos de Uso
+9. Tecnologias e Ambiente
+10. Próximos Passos
+
+1. 🎯 Visão Geral do Projeto
+
+FoxWorld RPG é um jogo de RPG 2D por turnos desenvolvido em Python com Pygame. O projeto evoluiu para incluir um sistema robusto de persistência de dados e gerenciamento de entidades complexas.
+
+Estado Atual: Fase 1.5 - Infraestrutura de dados completa e sistemas de menu/criação de personagem funcionais.
+Próximo Foco: Implementação do sistema de batalha e exploração.
+
+Características Principais:
+✅ Sistema de estados robusto com State Pattern
+✅ UI responsiva que se adapta a qualquer resolução
+✅ Sistema de temas dinâmico e extensível
+✅ Persistência de dados avançada em SQLite (8+ tabelas)
+✅ Sistema de entidades (Hero/HeroStats) com atributos derivados e bônus de classe
+✅ Migração automática de dados e inicialização de tabelas via TableCreator
+
+2. 🏗️ Arquitetura do Sistema
+
+Padrão de Estados (State Pattern) & Inicialização em Duas Etapas
+O jogo utiliza uma máquina de estados e um sistema de inicialização cuidadoso para evitar dependências circulares entre configurações e banco de dados.
+
+Fluxo Arquitetural:
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   MAIN.PY       │───▶│   GAME (Core)    │───▶│ STATE MANAGER   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       ▼                       ▼
+         │              ┌──────────────────┐    ┌─────────────────┐
+         └─────────────▶│   GAME_CONFIG    │◀──▶│ DATABASE (SQLite)│
+                        └──────────────────┘    └─────────────────┘
+                                │                       ▲
+                                ▼                       │
+                        ┌──────────────────┐    ┌─────────────────┐
+                        │ THEME_MANAGER    │    │ HERO_MANAGER    │
+                        └──────────────────┘    └─────────────────┘
+
+Componentes Arquiteturais:
+Componente      | Responsabilidade                          | Localização
+----------------|-------------------------------------------|----------------------------------
+Game            | Loop principal e coordenação              | src/core/game.py
+StateManager    | Gerenciamento de estados                  | src/core/state_manager.py
+GameConfig      | Configurações centrais e recursos         | config/game_config.py
+DatabaseManager | Persistência de dados (ORM simplificado)  | src/database/database_manager.py
+ThemeManager    | Gerenciamento de temas visuais            | config/theme_manager.py
+HeroManager     | Gerenciamento de lógica de heróis         | src/entities/hero_manager.py
+
+3. 📁 Estrutura de Arquivos
+
+🗃️ FoxWorldRPG/
+├── 🐍 main.py                       # Ponto de entrada
+├── 📝 requirements.txt              # Dependências
+├── 🗺️ assets/                       # Recursos (imagens, sons, fontes, temas)
+├── 🗂️ config/
+│   ├── 🐍 display_config.py         # Configurações de vídeo
+│   ├── 🐍 game_config.py            # Configurações centrais
+│   ├── 🐍 settings_manager.py       # Gerenciador de settings (KV store)
+│   └── 🐍 theme_manager.py          # Gerenciador de temas
+├── 🗂️ saves/
+│   └── 🔵 game_data.sqlite          # Banco de dados SQLite
+└── 🗂️ src/
+    ├── 🗂️ core/
+    │   ├── 🐍 game.py               # Classe principal Game
+    │   └── 🐍 state_manager.py      # Gerenciador de estados
+    ├── 🗂️ database/
+    │   ├── 🐍 database_manager.py   # Gerenciador do BD
+    │   └── 🗂️ datamaker/            # Schemas das tabelas
+    │       ├── 🐍 hero_classes.py
+    │       ├── 🐍 players.py
+    │       ├── 🐍 enemies.py
+    │       ├── 🐍 items.py
+    │       ├── 🐍 npcs.py
+    │       ├── 🐍 quests.py
+    │       ├── 🐍 shops.py
+    │       └── 🐍 table_creator.py  # Classe base para criação de tabelas
+    ├── 🗂️ entities/
+    │   ├── 🐍 hero.py               # Lógica de domínio do Herói
+    │   └── 🐍 hero_manager.py       # Serviço de aplicação para Heróis
+    ├── 🗂️ states/                   # Estados do jogo (Menu, Criação, etc.)
+    ├── 🗂️ ui/                       # Componentes de UI (Botões, etc.)
+    └── 🗂️ utils/                    # Utilitários
+
+4. ⚙️ Componentes Principais
+
+4.1. Game (src/core/game.py)
+Responsabilidade: Inicializa o sistema em ordem específica para garantir que o Database esteja pronto antes das configurações que dependem dele.
+
+4.2. DatabaseManager (src/database/database_manager.py)
+Tecnologia: SQLite3 com sistema TableCreator.
+Funcionalidade:
+- Gerencia conexão robusta (reconexão automática).
+- Inicializa tabelas estáticas (classes, itens, inimigos) e dinâmicas (players).
+- Realiza migração de dados legados.
+
+4.3. HeroManager (src/entities/hero_manager.py)
+Padrão: Data Mapper / Service
+Funcionalidade:
+- Converte objetos `Hero` (Python) para registros na tabela `players` (SQLite).
+- Carrega heróis do banco e reconstrói os objetos com todos os atributos calculados.
+
+5. ⚡ Sistemas Implementados
+
+5.1. Sistema de Entidades (Hero)
+Localização: `src/entities/hero.py`
+Estrutura:
+- `HeroClass`: Enum com as classes disponíveis.
+- `HeroStats`: Dataclass com atributos base (Força, Dex...) e derivados (Dano, Crítico...).
+- `Hero`: Classe principal que calcula stats derivados baseado em nível e classe.
+
+5.2. Sistema de Criação de Personagem
+Localização: `src/states/character_creation_state.py`
+Integração:
+- Lê classes disponíveis da tabela `hero_classes`.
+- Permite distribuição de pontos.
+- Salva o novo personagem na tabela `players` via `HeroManager`.
+
+6. 💾 Estrutura de Dados Detalhada (Banco de Dados)
+
+O banco de dados possui as seguintes tabelas principais:
+
+6.1. Tabela `players`
+Armazena o estado completo do jogador.
+Colunas Principais:
+- `id`, `name` (Unique)
+- `hero_class_id` (FK)
+- Atributos Base: `forca`, `destreza`, `vitalidade`, `inteligencia`, etc.
+- Status: `vida_atual`, `mana_atual`.
+- Progresso: `level`, `experience`.
+- Localização (Hardcoded no momento): `zona_id`, `posicao_x`, `posicao_y`.
+
+6.2. Tabela `hero_classes`
+Tabela estática com definições das classes.
+Colunas: `class_key`, `name`, `description`, bônus de atributos (`strength_bonus`, etc.), `primary_attribute`.
+
+6.3. Tabela `settings`
+Armazena configurações do jogo no formato Key-Value.
+Colunas: `category`, `key`, `value`, `data_type`.
+
+Outras tabelas implementadas: `enemies`, `items`, `npcs`, `quests`, `shops`, `game_world`.
+
+7. 🛠️ Guia de Desenvolvimento
+
+7.1. Adicionando uma Nova Tabela
+1. Crie um arquivo em `src/database/datamaker/`.
+2. Herde de `TableCreator`.
+3. Implemente `get_table_name`, `get_table_definition` e `get_base_data` (se estática).
+4. Registre a nova tabela em `DatabaseManager.initialize_game_tables`.
+
+7.2. Modificando Atributos do Herói
+1. Adicione o campo em `HeroStats` (`src/entities/hero.py`).
+2. Atualize a lógica de cálculo em `Hero._calculate_derived_stats` se necessário.
+3. Adicione a coluna correspondente em `PlayersTable` (`src/database/datamaker/players.py`).
+4. Atualize o mapeamento em `HeroManager._convert_db_player_to_hero` e `_convert_hero_to_db_player`.
+
+8. 📚 Exemplos de Uso
+
+8.1. Criando e Salvando um Herói (Via Código)
+```python
+# Obtém o manager
+hero_manager = game.game_config.hero_manager
+
+# Cria o herói (já salva no banco automaticamente)
+hero = hero_manager.create_hero(
+    name="Conan",
+    hero_class=HeroClass.BARBARIAN,
+    base_attributes={'forca': 8, 'vitalidade': 6}
+)
+```
+
+8.2. Carregando um Herói
+```python
+hero = hero_manager.get_hero("Conan")
+if hero:
+    print(f"Vida: {hero.stats.vida_atual}/{hero.stats.vida_maxima}")
+```
+
+9. 🔧 Tecnologias e Ambiente
+
+Linguagem: Python 3.10+
+Game Framework: Pygame 2.6.1
+Banco de Dados: SQLite3 (Nativo)
+
+10. 🗺️ Próximos Passos
+
+Fase 2: Sistema de Batalha (BattleState)
+- Implementar loop de turno.
+- Criar UI de batalha.
+- Integrar com `Hero` (player) e `Enemy` (do banco de dados).
+
+Fase 3: Exploração (WorldMap)
+- Implementar movimentação no mapa.
+- Persistir posição real do jogador na tabela `players`.

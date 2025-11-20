@@ -77,7 +77,11 @@ class ThemeSelectionState(BaseState):
                 self._back()
         else:
             all_buttons = self.buttons + self.theme_buttons
-            ButtonManager.handle_button_click(all_buttons, event)
+            # ✅ CORREÇÃO: Processar eventos de mouse nos botões
+            for button in all_buttons:
+                if hasattr(button, 'handle_event'):
+                    if button.handle_event(event, self.game):
+                        break
                     
     def update(self):
         all_buttons = self.buttons + self.theme_buttons

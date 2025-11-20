@@ -24,3 +24,17 @@ class MenuState(BaseState):
     def on_resize(self, old_size, new_size):
         """Recria o menu quando a resolução muda"""
         self.menu = MainMenu(self.game)
+
+    def _continue_game(self):
+        """Continua o jogo com o herói atual"""
+        current_hero = self.game.hero_manager.get_current_hero()
+        
+        if not current_hero:
+            print("⚠️ Nenhum herói encontrado. Crie um novo personagem.")
+            self._new_game()
+            return
+        
+        print(f"🎮 Continuando com: {current_hero.name}")
+        # Aqui você carrega o estado do jogo com o herói atual
+        # from src.states.game_state import GameState
+        # self.game.state_manager.change_state(GameState(self.game, current_hero))

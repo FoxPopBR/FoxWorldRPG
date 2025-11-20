@@ -149,7 +149,11 @@ class AudioSettingsState(BaseState):
                 all_buttons.extend([minus_btn, plus_btn])
             all_buttons.extend(self.action_buttons)
             
-            ButtonManager.handle_button_click(all_buttons, event)
+            # ✅ CORREÇÃO: Processar eventos de mouse nos botões
+            for button in all_buttons:
+                if hasattr(button, 'handle_event'):
+                    if button.handle_event(event, self.game):
+                        break
                     
     def update(self):
         all_buttons = []

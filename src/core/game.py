@@ -1,3 +1,4 @@
+# src/core/game.py - VERSÃO CORRIGIDA
 import pygame
 import sys
 from typing import Optional
@@ -6,13 +7,22 @@ from config.game_config import GameConfig
 from src.core.state_manager import StateManager
 
 class Game:
-    """Classe principal do jogo"""
-    
     def __init__(self):
-        # Inicializa GameConfig primeiro
+        # ✅ CORREÇÃO: Inicializa GameConfig SEM database primeiro
         self.game_config = GameConfig(self)
         
-        # Agora inicializa DisplayConfig com o settings_manager
+        # ✅ CORREÇÃO: Agora inicializa o database
+        from src.database.database_manager import DatabaseManager
+        database_manager = DatabaseManager()
+
+        # ✅ INICIALIZAÇÃO DAS TABELAS DO JOGO
+        print("🦊 Inicializando tabelas do banco de dados...")
+        database_manager.initialize_game_tables(force_recreate_static=False)
+        
+        # ✅ CORREÇÃO: Completa a inicialização do GameConfig
+        self.game_config.initialize_managers(database_manager)
+        
+        # Agora inicializa DisplayConfig (que precisa do settings_manager)
         self.display_config = DisplayConfig(self.game_config.settings_manager)
         
         self._initialize_pygame()
@@ -26,9 +36,9 @@ class Game:
         try:
             pygame.init()
             pygame.font.init()
-            print("Pygame inicializado com sucesso")
+            print("✅ Pygame inicializado com sucesso")
         except Exception as e:
-            print(f"ERRO: Falha ao inicializar Pygame: {e}")
+            print(f"❌ ERRO: Falha ao inicializar Pygame: {e}")
             sys.exit(1)
         
     def _create_window(self):
@@ -39,9 +49,9 @@ class Game:
                 self.display_config.get_display_flags()
             )
             pygame.display.set_caption("FoxWorld RPG")
-            print(f"Janela criada: {self.display_config.current_resolution}")
+            print(f"✅ Janela criada: {self.display_config.current_resolution}")
         except Exception as e:
-            print(f"ERRO: Falha ao criar janela: {e}")
+            print(f"❌ ERRO: Falha ao criar janela: {e}")
             sys.exit(1)
                 
     def handle_events(self):
@@ -65,6 +75,7 @@ class Game:
     def run(self):
         """Loop principal do jogo"""
         try:
+            print("🚀 Iniciando FoxWorld RPG...")
             while self.running:
                 self.handle_events()
                 self.update()
@@ -81,18 +92,17 @@ class Game:
             self.cleanup()
             
     def cleanup(self):
-        """Limpeza final do jogo"""
+        """Limpeza antes de sair do jogo"""
+        print("🧹 Realizando limpeza...")
+
         try:
-            # Salva configurações de display
-            self.display_config.save_to_file()
-            
-            # Limpeza do game_config
-            self.game_config.cleanup()
-            
-            print("✅ Configurações salvas e banco de dados fechado")
+            # Fecha o banco de dados
+            if hasattr(self, 'game_config') and hasattr(self.game_config, 'database'):
+                self.game_config.database.close()
+                print("✅ Banco de dados fechado")
         except Exception as e:
-            print(f"⚠️  AVISO: Não foi possível salvar configurações: {e}")
-        
+            print(f"⚠️ Erro ao fechar banco de dados: {e}")
+
         pygame.quit()
         print("🎮 Jogo finalizado")
         

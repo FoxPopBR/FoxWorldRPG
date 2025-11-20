@@ -42,9 +42,10 @@ class SettingsState(BaseState):
         ]
         
         for base_x, base_y, text, action in button_configs:
+            # ✅ CORREÇÃO: Use font_size em vez de base_font_size
             button = Button(
                 base_x, base_y, base_button_width, base_button_height,
-                text, action, base_font_size=28
+                text, action, 28  # font_size como positional argument
             )
             self.buttons.append(button)
         
@@ -96,8 +97,11 @@ class SettingsState(BaseState):
                 self._open_theme_selection()
                 
         else:
-            # Usar ButtonManager para processar cliques
-            ButtonManager.handle_button_click(self.buttons, event)
+            # ✅ CORREÇÃO: Processar eventos de mouse nos botões
+            for button in self.buttons:
+                if hasattr(button, 'handle_event'):
+                    if button.handle_event(event, self.game):
+                        break  # Se um botão foi clicado, para de verificar
                     
     def update(self):
         """Atualiza a lógica do estado"""

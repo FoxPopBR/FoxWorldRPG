@@ -89,8 +89,11 @@ class VideoSettingsState(BaseState):
             if event.key == pygame.K_ESCAPE:
                 self._back()
         else:
-            # Usar ButtonManager para processar cliques
-            ButtonManager.handle_button_click(self.buttons, event)
+            # ✅ CORREÇÃO: Processar eventos de mouse nos botões
+            for button in self.buttons:
+                if hasattr(button, 'handle_event'):
+                    if button.handle_event(event, self.game):
+                        break
                     
     def update(self):
         # Usar ButtonManager para atualizar botões

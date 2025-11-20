@@ -1,100 +1,116 @@
+# src/ui/button.py
 import pygame
-from typing import Optional, Callable
 from src.ui.responsive_ui import ResponsiveUI
 
 class Button:
-    def __init__(self, base_x: int, base_y: int, base_width: int, base_height: int, 
-                 text: str, action: Optional[Callable] = None, base_font_size: int = 32,
-                 image_key: str = None):
-        # Armazena as posições e tamanhos base (para 1080p)
-        self.base_x = base_x
-        self.base_y = base_y
-        self.base_width = base_width
-        self.base_height = base_height
-        self.base_font_size = base_font_size
-        
+    """
+    Botão com suporte a hover, clique e escalonamento responsivo.
+    Compatível com assinaturas antigas e novas.
+    """
+    
+    def __init__(self, x, y, width, height, text, action=None, font_size=24):
+        self.base_rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.action = action
-        self.is_hovered_flag = False
-        self.rect = None
-        self.image_key = image_key
-        self.scale_on_hover = 1.0
+        self.font_size = font_size
+        self.hovered = False
+        self.clicked = False
         
-    def update_rect(self, screen_width: int, screen_height: int):
-        """Atualiza o retângulo baseado na resolução atual"""
-        self.rect = ResponsiveUI.scale_rect(
-            self.base_x, self.base_y, 
-            self.base_width, self.base_height,
-            screen_width, screen_height
-        )
-        
-    def is_hovered(self) -> bool:
-        return self.rect and self.rect.collidepoint(pygame.mouse.get_pos())
-    
-    def update(self, mouse_pos: tuple, screen_width: int, screen_height: int, game_config):
-        """Atualiza o estado do botão"""
-        self.update_rect(screen_width, screen_height)
-        was_hovered = self.is_hovered_flag
-        self.is_hovered_flag = self.rect.collidepoint(mouse_pos) if self.rect else False
-        
-        # Animação de escala no hover
-        scale_setting = game_config.get_animation_setting("button_scale_on_hover", 1.05)
-        if self.is_hovered_flag and not was_hovered:
-            self.scale_on_hover = scale_setting
-        elif not self.is_hovered_flag and was_hovered:
-            self.scale_on_hover = 1.0
-        
-    def click(self):
-        if self.action:
-            self.action()
+        # Cores padrão do tema
+        self.normal_color = (80, 80, 120)
+        self.hover_color = (100, 100, 200) 
+        self.click_color = (120, 120, 220)
+        self.border_color = (200, 200, 200)
+        self.text_color = (255, 255, 255)
+
+    def is_clicked(self, event, game=None):
+        """
+        Verifica se o botão foi clicado.
+        Suporta assinatura com e sem 'game' para compatibilidade.
+        """
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            mouse_pos = pygame.mouse.get_pos()
             
-    def render(self, screen: pygame.Surface, game_config):
-        if not self.rect:
-            self.update_rect(screen.get_width(), screen.get_height())
-            
-        # Imagem de fundo do botão
-        normal_image = game_config.get_image(self.image_key or "button_normal")
-        hover_image = game_config.get_image("button_hover") or normal_image
-        
-        if normal_image:
-            # Usar imagem do tema
-            current_image = hover_image if self.is_hovered_flag else normal_image
-            
-            # Aplicar escala se hover
-            if self.scale_on_hover != 1.0:
-                scaled_width = int(self.rect.width * self.scale_on_hover)
-                scaled_height = int(self.rect.height * self.scale_on_hover)
-                scaled_image = pygame.transform.scale(current_image, (scaled_width, scaled_height))
-                scaled_rect = scaled_image.get_rect(center=self.rect.center)
-                screen.blit(scaled_image, scaled_rect)
+            # Calcula o retângulo escalado
+            if game is not None:
+                try:
+                    screen_width, screen_height = game.game_config.current_resolution
+                    scaled_rect = ResponsiveUI.scale_rect(
+                        self.base_rect.x, self.base_rect.y,
+                        self.base_rect.width, self.base_rect.height,
+                        screen_width, screen_height
+                    )
+                except AttributeError:
+                    # Fallback se game.game_config não estiver disponível
+                    scaled_rect = self.base_rect
             else:
-                screen.blit(current_image, self.rect)
-        else:
-            # Fallback para desenho com cores
-            color = game_config.get_color('button_hover') if self.is_hovered_flag else game_config.get_color('button_normal')
-            border_radius = game_config.get_ui_setting('border_radius', 8)
-            border_width = game_config.get_ui_setting('border_width', 2)
-            
-            # Aplicar escala se hover
-            if self.scale_on_hover != 1.0:
-                scaled_rect = self.rect.copy()
-                scaled_rect.width = int(self.rect.width * self.scale_on_hover)
-                scaled_rect.height = int(self.rect.height * self.scale_on_hover)
-                scaled_rect.center = self.rect.center
+                scaled_rect = self.base_rect
                 
-                pygame.draw.rect(screen, color, scaled_rect, border_radius=border_radius)
-                pygame.draw.rect(screen, game_config.get_color('ui_border'), scaled_rect, border_width, border_radius=border_radius)
-            else:
-                pygame.draw.rect(screen, color, self.rect, border_radius=border_radius)
-                pygame.draw.rect(screen, game_config.get_color('ui_border'), self.rect, border_width, border_radius=border_radius)
+            if scaled_rect.collidepoint(mouse_pos):
+                self.clicked = True
+                return True
+                
+        return False
+
+    def update(self, mouse_pos, game=None):
+        """
+        Atualiza o estado do botão (hover).
+        Suporta assinatura com e sem 'game'.
+        """
+        # Calcula o retângulo escalado
+        if game is not None:
+            try:
+                screen_width, screen_height = game.game_config.current_resolution
+                scaled_rect = ResponsiveUI.scale_rect(
+                    self.base_rect.x, self.base_rect.y,
+                    self.base_rect.width, self.base_rect.height,
+                    screen_width, screen_height
+                )
+            except AttributeError:
+                scaled_rect = self.base_rect
+        else:
+            scaled_rect = self.base_rect
+            
+        self.hovered = scaled_rect.collidepoint(mouse_pos)
         
-        # Texto com fonte escalada
-        font_size = ResponsiveUI.scale_font_size(
-            self.base_font_size, 
-            screen.get_width(), 
-            screen.get_height()
-        )
-        font = game_config.get_font('button', font_size)
-        text_surface = font.render(self.text, True, game_config.get_color('text'))
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        screen.blit(text_surface, text_rect)
+        # Reset do estado de clique
+        if self.clicked:
+            self.clicked = False
+
+    def render(self, surface, game_config):
+        """
+        Renderiza o botão na surface.
+        """
+        try:
+            # Obtém a resolução atual para escalonamento
+            current_resolution = getattr(game_config, 'current_resolution', (1920, 1080))
+            
+            # Calcula retângulo escalado
+            scaled_rect = ResponsiveUI.scale_rect(
+                self.base_rect.x, self.base_rect.y,
+                self.base_rect.width, self.base_rect.height,
+                current_resolution[0], current_resolution[1]
+            )
+
+            # Define cores baseadas no estado
+            if self.clicked:
+                color = self.click_color
+            elif self.hovered:
+                color = self.hover_color
+            else:
+                color = self.normal_color
+
+            # Desenha o botão
+            pygame.draw.rect(surface, color, scaled_rect, border_radius=8)
+            pygame.draw.rect(surface, self.border_color, scaled_rect, 2, border_radius=8)
+
+            # Renderiza o texto
+            font = game_config.get_font('menu', self.font_size)
+            text_surface = font.render(self.text, True, self.text_color)
+            text_rect = text_surface.get_rect(center=scaled_rect.center)
+            surface.blit(text_surface, text_rect)
+            
+        except Exception as e:
+            print(f"❌ Erro ao renderizar botão '{self.text}': {e}")
+            # Fallback básico
+            pygame.draw.rect(surface, (255, 0, 0), self.base_rect)

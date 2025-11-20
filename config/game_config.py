@@ -1,13 +1,11 @@
+# config/game_config.py - VERSÃO CORRIGIDA
 import pygame
 import os
 from pathlib import Path
 from typing import Optional, Dict, Any
-from config.theme_manager import ThemeManager
-from config.settings_manager import SettingsManager
-from src.database.database_manager import DatabaseManager
 
 class GameConfig:
-    """Configurações gerais do jogo com suporte a temas e banco de dados"""
+    """Configurações gerais do jogo SEM importação circular"""
     
     def __init__(self, game=None):
         # Paths
@@ -18,17 +16,24 @@ class GameConfig:
         # Referência ao jogo
         self.game = game
         
-        # Banco de dados (sem referência circular)
-        self.database = DatabaseManager()
-        
-        # Gerenciadores
-        self.settings_manager = SettingsManager(self.database)
-        self.theme_manager = ThemeManager()
+        # ✅ CORREÇÃO: Inicialização adiada para evitar circularidade
+        self.database = None
+        self.settings_manager = None
+        self.theme_manager = None
         
         # Cache de recursos carregados
         self._image_cache: Dict[str, pygame.Surface] = {}
         self._font_cache: Dict[str, pygame.font.Font] = {}
         self._sound_cache: Dict[str, pygame.mixer.Sound] = {}
+    
+    def initialize_managers(self, database_manager):
+        """✅ CORREÇÃO: Inicializa managers DEPOIS para evitar importação circular"""
+        from config.settings_manager import SettingsManager
+        from config.theme_manager import ThemeManager
+        
+        self.database = database_manager
+        self.settings_manager = SettingsManager(self.database)
+        self.theme_manager = ThemeManager()
         
         # Aplica o tema atual do banco de dados
         current_theme = self.settings_manager.get_current_theme()
@@ -116,4 +121,48 @@ class GameConfig:
     
     def cleanup(self):
         """Limpeza final"""
-        self.database.close()
+        if self.database:
+            self.database.close()
+
+    def get_class_image(self, class_key):
+        """✅ CORREÇÃO: Carrega imagem da classe SEM método inexistente"""
+        image_key = f"class_{class_key}"
+        
+        if image_key in self._image_cache:
+            return self._image_cache[image_key]
+        
+        # ✅ CORREÇÃO: Define cores padrão para cada classe
+        class_colors = {
+            'barbaro': (178, 34, 34),      # Vermelho
+            'paladino': (255, 215, 0),     # Dourado  
+            'druida': (34, 139, 34),       # Verde
+            'feiticeiro': (65, 105, 225),  # Azul
+            'necromante': (75, 0, 130)     # Roxo
+        }
+        
+        try:
+            # Tenta carregar do diretório de assets
+            image_path = self.ASSETS_PATH / "images" / "classes" / f"{class_key}_icon.png"
+            if image_path.exists():
+                image = pygame.image.load(str(image_path)).convert_alpha()
+                self._image_cache[image_key] = image
+                return image
+        except Exception as e:
+            print(f"AVISO: Não foi possível carregar imagem da classe {class_key}: {e}")
+        
+        # Fallback: cria imagem placeholder
+        surface = pygame.Surface((100, 100), pygame.SRCALPHA)
+        color = class_colors.get(class_key, (128, 128, 128))
+        
+        # Desenha um círculo colorido como placeholder
+        pygame.draw.circle(surface, color, (50, 50), 45)
+        pygame.draw.circle(surface, (255, 255, 255), (50, 50), 40, 3)
+        
+        # Adiciona texto da classe
+        font = self.get_font('menu', 14)
+        text = font.render(class_key[:3].upper(), True, (255, 255, 255))
+        text_rect = text.get_rect(center=(50, 50))
+        surface.blit(text, text_rect)
+        
+        self._image_cache[image_key] = surface
+        return surface

@@ -1,10 +1,11 @@
+# config/theme_manager.py - VERSÃO MELHORADA
 import json
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 class ThemeManager:
-    """Gerenciador de temas do jogo"""
+    """Gerenciador de temas do jogo com validação robusta"""
     
     def __init__(self):
         self.themes: Dict[str, Dict[str, Any]] = {}
@@ -13,28 +14,69 @@ class ThemeManager:
         self._load_all_themes()
     
     def _load_all_themes(self):
-        """Carrega todos os temas disponíveis"""
+        """Carrega todos os temas disponíveis com validação robusta"""
         try:
             self.themes_path.mkdir(parents=True, exist_ok=True)
             
-            # Cria tema padrão se não existir
+            # Verifica se o tema padrão existe e é válido
             default_theme_path = self.themes_path / "default.json"
-            if not default_theme_path.exists():
+            if not default_theme_path.exists() or self._is_theme_corrupted(default_theme_path):
+                print("🔄 Recriando tema padrão...")
                 self._create_default_theme()
             
             # Carrega todos os temas
+            loaded_themes = 0
             for theme_file in self.themes_path.glob("*.json"):
                 theme_name = theme_file.stem
                 try:
                     with open(theme_file, 'r', encoding='utf-8') as f:
-                        self.themes[theme_name] = json.load(f)
-                    print(f"Tema carregado: {theme_name}")
-                except Exception as e:
-                    print(f"Erro ao carregar tema {theme_name}: {e}")
+                        theme_data = json.load(f)
                     
+                    # ✅ CORREÇÃO: Valida estrutura básica do tema
+                    if self._validate_theme_structure(theme_data):
+                        self.themes[theme_name] = theme_data
+                        loaded_themes += 1
+                        print(f"✅ Tema carregado: {theme_name}")
+                    else:
+                        print(f"❌ Tema inválido ignorado: {theme_name}")
+                        
+                except Exception as e:
+                    print(f"❌ Erro ao carregar tema {theme_name}: {e}")
+            
+            print(f"🎨 Total de temas carregados: {loaded_themes}")
+            
+            if not self.themes:
+                print("⚠️  Nenhum tema carregado, criando tema padrão de emergência")
+                self._create_default_theme()
+                
         except Exception as e:
-            print(f"Erro ao carregar temas: {e}")
+            print(f"💥 Erro crítico ao carregar temas: {e}")
             self._create_default_theme()
+    
+    def _is_theme_corrupted(self, theme_path: Path) -> bool:
+        """Verifica se um arquivo de tema está corrompido"""
+        try:
+            with open(theme_path, 'r', encoding='utf-8') as f:
+                json.load(f)
+            return False
+        except:
+            return True
+    
+    def _validate_theme_structure(self, theme_data: Dict[str, Any]) -> bool:
+        """Valida a estrutura básica de um tema"""
+        required_sections = ['name', 'colors', 'fonts', 'images']
+        required_colors = ['background', 'text', 'button_normal', 'button_hover']
+        
+        # Verifica se todas as seções necessárias existem
+        if not all(section in theme_data for section in required_sections):
+            return False
+        
+        # Verifica se as cores essenciais existem
+        colors = theme_data.get('colors', {})
+        if not all(color in colors for color in required_colors):
+            return False
+            
+        return True
     
     def _create_default_theme(self):
         """Cria o tema padrão"""
@@ -99,17 +141,18 @@ class ThemeManager:
         try:
             with open(self.themes_path / "default.json", 'w', encoding='utf-8') as f:
                 json.dump(default_theme, f, indent=4, ensure_ascii=False)
+            print("✅ Tema padrão criado/recriado com sucesso")
         except Exception as e:
-            print(f"Erro ao salvar tema padrão: {e}")
+            print(f"❌ Erro ao salvar tema padrão: {e}")
     
     def set_theme(self, theme_name: str) -> bool:
         """Define o tema atual"""
         if theme_name in self.themes:
             self.current_theme = theme_name
-            print(f"Tema alterado para: {theme_name}")
+            print(f"🎨 Tema alterado para: {theme_name}")
             return True
         else:
-            print(f"Tema não encontrado: {theme_name}")
+            print(f"❌ Tema não encontrado: {theme_name}")
             return False
     
     def get_theme(self) -> Dict[str, Any]:
@@ -160,11 +203,11 @@ class ThemeManager:
             with open(self.themes_path / f"{new_theme_name}.json", 'w', encoding='utf-8') as f:
                 json.dump(current_theme, f, indent=4, ensure_ascii=False)
             
-            print(f"Novo tema criado: {new_theme_name}")
+            print(f"✅ Novo tema criado: {new_theme_name}")
             return True
             
         except Exception as e:
-            print(f"Erro ao criar tema: {e}")
+            print(f"❌ Erro ao criar tema: {e}")
             return False
     
     def get_available_themes(self) -> List[str]:
