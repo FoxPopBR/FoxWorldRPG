@@ -1,12 +1,13 @@
 # src/database/damaker/players.py
 from .table_creator import TableCreator
 
+
 class PlayersTable(TableCreator):
     """Tabela de jogadores - COM TODOS OS ATRIBUTOS DETALHADOS"""
-    
+
     def get_table_name(self) -> str:
         return "players"
-    
+
     def get_table_definition(self) -> str:
         return """
         CREATE TABLE players (
@@ -23,7 +24,7 @@ class PlayersTable(TableCreator):
             vitalidade INTEGER DEFAULT 5,
             inteligencia INTEGER DEFAULT 5,
             armadura INTEGER DEFAULT 5,
-            energia INTEGER DEFAULT 5,
+            mana INTEGER DEFAULT 5,
             stamina INTEGER DEFAULT 5,
             
             -- STATUS ATUAL
@@ -75,8 +76,8 @@ class PlayersTable(TableCreator):
             FOREIGN KEY (hero_class_id) REFERENCES hero_classes (id)
         )
         """
-    
+
     def get_base_data(self):
         return []
-    
+
     is_static_table = False

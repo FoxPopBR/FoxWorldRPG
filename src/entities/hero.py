@@ -21,7 +21,8 @@ class HeroStats:
     vitalidade: int = 5
     inteligencia: int = 5
     armadura: int = 5
-    energia: int = 5
+    energia: int = 5  # Mantido para compatibilidade com DB
+    mana: int = 5  # Novo nome
     stamina: int = 5
 
     # Atributos derivados
@@ -29,6 +30,7 @@ class HeroStats:
     mana_maxima: int = 0
     vida_atual: int = 0
     mana_atual: int = 0
+    stamina_atual: int = 0
     dano_fisico_min: int = 0
     dano_fisico_max: int = 0
     dano_magico_min: int = 0
@@ -66,7 +68,13 @@ class Hero:
         self.posicao_x: float = 0.0
         self.posicao_y: float = 0.0
         self.gold: int = 0
+        self.gold: int = 0
         self.tempo_jogo: int = 0
+        self.inventory: List[Dict[str, Any]] = []  # Lista de itens
+
+        # Assets (Runtime only)
+        self.image_face: Any = None  # pygame.Surface
+        self.image_body: Any = None  # pygame.Surface
 
         self._calculate_derived_stats()
 
@@ -80,9 +88,7 @@ class Hero:
 
         # Atributos derivados
         base.vida_maxima = effective_stats.vitalidade * 12 + effective_stats.forca * 3
-        base.mana_maxima = (
-            effective_stats.inteligencia * 10 + effective_stats.energia * 5
-        )
+        base.mana_maxima = effective_stats.inteligencia * 10 + effective_stats.mana * 5
         base.vida_atual = base.vida_maxima
         base.mana_atual = base.mana_maxima
         base.dano_fisico_min = effective_stats.forca * 2
@@ -92,7 +98,7 @@ class Hero:
         base.defesa_fisica = (
             effective_stats.armadura * 3 + effective_stats.vitalidade // 2
         )
-        base.defesa_magica = effective_stats.inteligencia * 2 + effective_stats.energia
+        base.defesa_magica = effective_stats.inteligencia * 2 + effective_stats.mana
         base.bloqueio = effective_stats.armadura * 0.5
         base.chance_critico = effective_stats.destreza * 0.6
         base.dano_critico = 150 + effective_stats.destreza * 1.5
@@ -100,7 +106,7 @@ class Hero:
         base.velocidade_ataque = 1.0 + effective_stats.destreza * 0.03
         base.precisao = 80 + effective_stats.destreza * 2
         base.regeneracao_vida = effective_stats.vitalidade * 0.15
-        base.regeneracao_mana = effective_stats.energia * 0.25
+        base.regeneracao_mana = effective_stats.mana * 0.25
         base.resistencia_fogo = effective_stats.vitalidade * 0.6
         base.resistencia_gelo = effective_stats.vitalidade * 0.6
         base.resistencia_eletrico = effective_stats.vitalidade * 0.6
@@ -123,10 +129,10 @@ class Hero:
         """Retorna bônus da classe"""
         bonuses = {
             HeroClass.BARBARIAN: {"forca": 3, "vitalidade": 2, "stamina": 2},
-            HeroClass.PALADIN: {"armadura": 3, "forca": 2, "energia": 1},
-            HeroClass.DRUID: {"inteligencia": 2, "energia": 2, "vitalidade": 1},
-            HeroClass.SORCERER: {"inteligencia": 3, "energia": 3, "forca": -2},
-            HeroClass.NECROMANCER: {"inteligencia": 3, "energia": 2, "vitalidade": -1},
+            HeroClass.PALADIN: {"armadura": 3, "forca": 2, "mana": 1},
+            HeroClass.DRUID: {"inteligencia": 2, "mana": 2, "vitalidade": 1},
+            HeroClass.SORCERER: {"inteligencia": 3, "mana": 3, "forca": -2},
+            HeroClass.NECROMANCER: {"inteligencia": 3, "mana": 2, "vitalidade": -1},
         }
         return bonuses.get(self.hero_class, {})
 

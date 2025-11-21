@@ -64,6 +64,13 @@ HeroManager     | Gerenciamento de lógica de heróis         | src/entities/her
 ├── 🐍 main.py                       # Ponto de entrada
 ├── 📝 requirements.txt              # Dependências
 ├── 🗺️ assets/                       # Recursos (imagens, sons, fontes, temas)
+│   ├── 🖼️ images/
+│   │   ├── 👤 classes/              # Imagens de classes (Hero)
+│   │   │   ├── {classe}_face.png    # Rosto (Close-up)
+│   │   │   ├── {classe}_body.png    # Corpo inteiro
+│   │   │   └── {classe}_class.png   # Ilustração da classe
+│   │   ├── 👾 enemy/                # Imagens de inimigos ({nome}.png)
+│   │   └── 🎒 icons/                # Ícones de itens (32x32)
 ├── 🗂️ config/
 │   ├── 🐍 display_config.py         # Configurações de vídeo
 │   ├── 🐍 game_config.py            # Configurações centrais

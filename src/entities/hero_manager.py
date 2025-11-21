@@ -8,8 +8,9 @@ from .hero import Hero, HeroClass, HeroStats
 class HeroManager:
     """Gerencia todos os heróis do jogo usando a tabela players do banco de dados"""
 
-    def __init__(self, database):
+    def __init__(self, database, resource_manager=None):
         self.database = database
+        self.resource_manager = resource_manager
         self.heroes: Dict[str, Hero] = {}
         self.current_hero: Optional[Hero] = None
         self._load_all_heroes()
@@ -23,17 +24,21 @@ class HeroManager:
                 try:
                     hero = self._convert_db_player_to_hero(player_data)
                     self.heroes[hero.name.lower()] = hero
-                    print(f"✅ Herói carregado da tabela players: {hero.name}")
+                    # print(f"✅ Herói carregado da tabela players: {hero.name}")
                 except Exception as e:
                     print(
                         f"❌ Erro ao carregar herói {player_data.get('name', 'Unknown')}: {e}"
                     )
 
-            print(f"🎯 Total de heróis carregados: {len(self.heroes)}")
+            # print(f"🎯 Total de heróis carregados: {len(self.heroes)}")
 
         except Exception as e:
             print(f"❌ Erro ao carregar heróis do banco: {e}")
             self.heroes = {}
+
+    def get_active_hero(self) -> Optional[Hero]:
+        """Retorna o herói atualmente ativo"""
+        return self.current_hero
 
     def _convert_db_player_to_hero(self, player_data: Dict[str, Any]) -> Hero:
         """Converte dados da tabela players para objeto Hero"""
@@ -65,7 +70,8 @@ class HeroManager:
             "vitalidade",
             "inteligencia",
             "armadura",
-            "energia",
+            "energia",  # Mantido para compatibilidade com DB
+            "mana",  # Novo nome
             "stamina",
             # Atributos derivados básicos
             "vida_maxima",
@@ -103,7 +109,22 @@ class HeroManager:
 
         hero.stats = base_stats
 
+        hero.stats = base_stats
+
+        # Carrega assets se disponível
+        self._load_hero_assets(hero)
+
         return hero
+
+    def _load_hero_assets(self, hero: Hero):
+        """Carrega os assets visuais do herói"""
+        if self.resource_manager:
+            hero.image_face = self.resource_manager.get_hero_image(
+                hero.hero_class.value, "face"
+            )
+            hero.image_body = self.resource_manager.get_hero_image(
+                hero.hero_class.value, "body"
+            )
 
     def _convert_hero_to_db_player(self, hero: Hero) -> Dict[str, Any]:
         """Converte objeto Hero para dados da tabela players"""
@@ -125,7 +146,7 @@ class HeroManager:
             "vitalidade": hero.stats.vitalidade,
             "inteligencia": hero.stats.inteligencia,
             "armadura": hero.stats.armadura,
-            "energia": hero.stats.energia,
+            "mana": hero.stats.mana,  # Novo atributo
             "stamina": hero.stats.stamina,
             # Status atual
             "vida_atual": hero.stats.vida_atual,
@@ -182,11 +203,17 @@ class HeroManager:
         # Recalcula atributos derivados
         hero._calculate_derived_stats()
 
+        # Carrega assets
+        self._load_hero_assets(hero)
+
         # Salva na tabela players
         self._save_hero_to_db(hero)
 
         # Adiciona ao cache
         self.heroes[hero.name.lower()] = hero
+
+        # Define como herói ativo
+        self.current_hero = hero
 
         print(
             f"🎮 Novo herói criado e salvo na tabela players: {hero.name} ({hero_class.value})"
