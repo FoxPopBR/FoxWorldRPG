@@ -1,22 +1,31 @@
-# src/states/save_select_state.py - ATUALIZADO PARA SISTEMA DE SLOTS
+# src/states/save_select_state.py
 import pygame
 from datetime import datetime
 from src.states.base_state import BaseState
 from src.ui.button import Button
-from src.ui.button_manager import ButtonManager
 
 
 class SaveSelectState(BaseState):
-    """Tela de seleção de slot de save (3 saves por slot de jogo)"""
+    """Tela de seleção de slot de save (3 saves por slot de jogo) - REFATORADO UIScaler"""
 
     def __init__(self, game):
         super().__init__(game)
         self.game_slot_id = getattr(game, "selected_game_slot", 1)
         self.slots = []
         self.buttons = []
-        self.slot_action_buttons = {}  # Botões de ação por slot
-        self.confirm_delete_slot = None  # Slot aguardando confirmação de exclusão
-        self.confirm_button = None  # Botão de confirmação no modal
+        self.slot_action_buttons = {}
+        self.confirm_delete_slot = None
+        self.confirm_button = None
+
+        # Diagramming base para 1920x1080 (UIScaler escala automaticamente)
+        self.base_slot_width = 500
+        # Diagramming base para 1920x1080 (UIScaler escala automaticamente)
+        self.base_slot_width = 500
+        # AJUSTADO para 300 (equilíbrio entre 1080p e 720p)
+        self.base_slot_height = 300
+        self.base_spacing = 50
+        self.base_start_y = 350
+
         self._load_save_slots()
         self._create_ui()
 
@@ -41,9 +50,7 @@ class SaveSelectState(BaseState):
                 self._initialize_empty_slots()
                 return
 
-            # Converte para lista de dicts
-            for row in slots_data:
-                self.slots.append(dict(row))
+            self.slots = [dict(row) for row in slots_data]
 
         except Exception as e:
             print(f"❌ Erro ao carregar slots de save: {e}")
@@ -77,47 +84,54 @@ class SaveSelectState(BaseState):
         self.buttons.clear()
         self.slot_action_buttons.clear()
 
-        # Botão Voltar
-        back_btn = Button(100, 980, 200, 60, "VOLTAR", self._back_to_slots, 24)
+        # Botão Voltar (posição base)
+        back_btn = Button(
+            100,
+            980,
+            200,
+            60,
+            "VOLTAR",
+            self._back_to_slots,
+            font_size=self.theme.FONT_MENU_MEDIUM,
+        )
         self.buttons.append(back_btn)
 
-        # Parâmetros dos slots
-        slot_width = 500
-        slot_height = 240  # Aumentado para acomodar botões
-        spacing = 50
-        start_x = (1920 - (slot_width * 3 + spacing * 2)) // 2
-        start_y = 350
+        # Calcula posição centralizada dos slots
+        total_width = self.base_slot_width * 3 + self.base_spacing * 2
+        base_start_x = (self.theme.BASE_WIDTH - total_width) // 2
 
-        # Cria botões de ação para cada slot
+        # Cria botões  de ação para cada slot
         for i in range(3):
             save_slot_id = i + 1
             slot = self.slots[i]
-            x_pos = start_x + i * (slot_width + spacing)
+            base_x = base_start_x + i * (self.base_slot_width + self.base_spacing)
             is_empty = not slot.get("hero_name")
-            is_auto = slot.get("slot_type") == "auto"
-
-            # Armazena botões deste slot
             self.slot_action_buttons[save_slot_id] = []
 
             if not is_empty:
                 # Save ocupado: Botões CARREGAR e DELETAR
+                # Botões posicionados no fundo do card (offset 70)
+                btn_y = self.base_start_y + self.base_slot_height - 70
+
                 load_btn = Button(
-                    x_pos + 20,
-                    start_y + slot_height - 50,
+                    base_x + 20,
+                    btn_y,
                     220,
                     40,
                     "CARREGAR SAVE",
                     lambda sid=save_slot_id: self._load_save(sid),
-                    18,
+                    font_size=self.theme.FONT_MENU_SMALL,
                 )
                 delete_btn = Button(
-                    x_pos + slot_width - 240,
-                    start_y + slot_height - 50,
+                    base_x + self.base_slot_width - 240,
+                    btn_y,
                     220,
                     40,
                     "DELETAR SAVE",
                     lambda sid=save_slot_id: self._confirm_delete_save(sid),
-                    18,
+                    font_size=self.theme.FONT_MENU_SMALL,
+                    bg_color=self.theme.COLOR_BUTTON_DANGER,
+                    hover_color=self.theme.COLOR_BUTTON_DANGER_HOVER,
                 )
                 self.slot_action_buttons[save_slot_id].extend([load_btn, delete_btn])
 
@@ -155,53 +169,39 @@ class SaveSelectState(BaseState):
 
     def _confirm_delete_save(self, save_slot_id):
         """Confirma exclusão do save"""
-        if self.confirm_delete_slot == save_slot_id:
-            # Já está mostrando o modal, o clique será tratado pelo botão do modal
-            pass
-        else:
-            # Primeira vez - pede confirmação
+        if self.confirm_delete_slot != save_slot_id:
             self.confirm_delete_slot = save_slot_id
 
-            # Cria botão de confirmação
-            box_width = 600
-            box_height = 200
-            box_x = (1920 - box_width) // 2
-            box_y = (1080 - box_height) // 2
+            # Cria botão de confirmação (posição base)
+            base_box_x = (self.theme.BASE_WIDTH - self.theme.MODAL_WIDTH) // 2
+            base_box_y = (self.theme.BASE_HEIGHT - 200) // 2
 
             self.confirm_button = Button(
-                box_x + box_width // 2 - 100,
-                box_y + 130,
+                base_box_x + self.theme.MODAL_WIDTH // 2 - 100,
+                base_box_y + 130,
                 200,
                 40,
                 "CONFIRMAR",
                 lambda: self._delete_save(save_slot_id),
-                20,
-                text_color=(255, 255, 255),
-                bg_color=(200, 50, 50),
-                hover_color=(255, 80, 80),
+                font_size=self.theme.FONT_MENU_SMALL,
+                bg_color=self.theme.COLOR_BUTTON_DANGER,
+                hover_color=self.theme.COLOR_BUTTON_DANGER_HOVER,
             )
 
             self.game.notification_manager.add_notification(
-                f"Confirme a exclusão", (255, 100, 100)
+                "Confirme a exclusão", (255, 100, 100)
             )
 
     def _delete_save(self, save_slot_id):
-        """Deleta um save específico (limpa os dados mas mantém o slot)"""
+        """Deleta um save específico"""
         try:
             cursor = self.game.game_config.database.connection.cursor()
-
-            # Limpa o save (não deleta o registro, apenas reseta os dados)
             cursor.execute(
                 """
                 UPDATE save_slots 
-                SET hero_name = NULL,
-                    hero_level = 1,
-                    hero_class = NULL,
-                    zone_name = 'Início',
-                    zone_id = 1,
-                    playtime = 0,
-                    save_description = '',
-                    is_active = 0
+                SET hero_name = NULL, hero_level = 1, hero_class = NULL,
+                    zone_name = 'Início', zone_id = 1, playtime = 0,
+                    save_description = '', is_active = 0
                 WHERE game_slot_id = ? AND save_slot_id = ?
                 """,
                 (self.game_slot_id, save_slot_id),
@@ -212,9 +212,8 @@ class SaveSelectState(BaseState):
                 f"Save {save_slot_id} deletado com sucesso", (100, 255, 100)
             )
 
+            self.confirm_delete_slot = None
             self.confirm_button = None
-
-            # Recarrega os slots
             self._load_save_slots()
             self._create_ui()
 
@@ -234,217 +233,251 @@ class SaveSelectState(BaseState):
         """Processa eventos"""
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                self._back_to_slots()
-                self.confirm_delete_slot = None  # Cancela confirmação
-                self.confirm_button = None
+                if self.confirm_delete_slot:
+                    self.confirm_delete_slot = None
+                    self.confirm_button = None
+                else:
+                    self._back_to_slots()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Se modal de confirmação estiver aberto, só verifica ele
-            if self.confirm_delete_slot and self.confirm_button:
-                if self.confirm_button.is_hovered(event.pos, self.game):
-                    self.confirm_button.on_click()
-                # Se clicar fora, pode fechar o modal se quiser, ou ignorar
-                # Por enquanto, vamos permitir clicar fora para cancelar
-                elif not pygame.Rect(
-                    (1920 - 600) // 2, (1080 - 200) // 2, 600, 200
-                ).collidepoint(event.pos):
+            # Modal de confirmação tem prioridade
+            if self.confirm_button:
+                if self.confirm_button.handle_event(event):
+                    return
+                # Clicar fora cancela
+                modal_rect = self.ui_scaler.rect(
+                    (self.theme.BASE_WIDTH - self.theme.MODAL_WIDTH) // 2,
+                    (self.theme.BASE_HEIGHT - 200) // 2,
+                    self.theme.MODAL_WIDTH,
+                    200,
+                )
+                if not modal_rect.collidepoint(event.pos):
                     self.confirm_delete_slot = None
                     self.confirm_button = None
                 return
 
-            # Verifica clique nos botões principais
-            ButtonManager.handle_button_click(self.buttons, event, self.game)
-
-            # Verifica clique nos botões de ação dos slots
-            for slot_id, action_buttons in self.slot_action_buttons.items():
-                for btn in action_buttons:
-                    if btn.is_hovered(event.pos, self.game):
-                        btn.on_click()
+            # Botões de ação dos slots
+            for buttons in self.slot_action_buttons.values():
+                for btn in buttons:
+                    if btn.handle_event(event):
                         return
+
+            # Botões principais
+            for btn in self.buttons:
+                if btn.handle_event(event):
+                    return
 
     def update(self):
         """Atualiza o estado"""
-        if self.confirm_delete_slot and self.confirm_button:
-            mouse_pos = pygame.mouse.get_pos()
-            self.confirm_button.update(mouse_pos, self.game)
+        mouse_pos = pygame.mouse.get_pos()
+
+        if self.confirm_button:
+            self.confirm_button.update(mouse_pos)
             return
 
-        ButtonManager.update_buttons(self.buttons, self.game)
+        for btn in self.buttons:
+            btn.update(mouse_pos)
 
-        # Atualiza botões de ação dos slots
-        for action_buttons in self.slot_action_buttons.values():
-            ButtonManager.update_buttons(action_buttons, self.game)
+        for buttons in self.slot_action_buttons.values():
+            for btn in buttons:
+                btn.update(mouse_pos)
 
     def render(self, surface):
         """Renderiza a tela de seleção de saves"""
-        screen_width, screen_height = surface.get_size()
-
-        # Fundo
-        surface.fill(self.game.game_config.get_color("background"))
+        surface.fill(self.theme.COLOR_BACKGROUND)
 
         # Título
-        title_font = self.game.game_config.get_font("title", 60)
+        title_font = self.ui_scaler.get_themed_font("title")
         title_text = title_font.render(
-            f"SAVES - SLOT {self.game_slot_id}", True, (255, 255, 255)
+            f"SAVES - SLOT {self.game_slot_id}", True, self.theme.COLOR_TEXT_PRIMARY
         )
-        surface.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, 100))
+        title_y = self.ui_scaler.scale(100, "y")
+        title_rect = title_text.get_rect(center=(surface.get_width() // 2, title_y))
+        surface.blit(title_text, title_rect)
 
         # Subtítulo
-        subtitle_font = self.game.game_config.get_font("menu", 24)
+        subtitle_font = self.ui_scaler.get_themed_font("menu")
         subtitle_text = subtitle_font.render(
-            "Selecione um save para carregar", True, (180, 180, 180)
+            "Selecione um save para carregar", True, self.theme.COLOR_TEXT_SECONDARY
         )
-        surface.blit(
-            subtitle_text, (screen_width // 2 - subtitle_text.get_width() // 2, 170)
+        subtitle_y = self.ui_scaler.scale(170, "y")
+        subtitle_rect = subtitle_text.get_rect(
+            center=(surface.get_width() // 2, subtitle_y)
         )
+        surface.blit(subtitle_text, subtitle_rect)
 
         # Renderiza os 3 slots
         self._render_save_slots(surface)
 
-        # Botões principais
-        ButtonManager.render_buttons(self.buttons, surface, self.game.game_config)
+        # Botões
+        for btn in self.buttons:
+            btn.render(surface)
 
-        # Renderiza botões de ação dos slots
-        for action_buttons in self.slot_action_buttons.values():
-            ButtonManager.render_buttons(action_buttons, surface, self.game.game_config)
+        for buttons in self.slot_action_buttons.values():
+            for btn in buttons:
+                btn.render(surface)
 
-        # Renderiza mensagem de confirmação se houver
+        # Modal de confirmação
         if self.confirm_delete_slot:
-            self._render_confirm_message(surface)
-            if self.confirm_button:
-                self.confirm_button.render(surface, self.game.game_config)
+            self._render_confirm_modal(surface)
 
     def _render_save_slots(self, surface):
         """Renderiza os 3 cards de save"""
-        slot_width = 500
-        slot_height = 240  # Aumentado
-        spacing = 50
-        start_x = (1920 - (slot_width * 3 + spacing * 2)) // 2
-        start_y = 350
+        total_width = self.base_slot_width * 3 + self.base_spacing * 2
+        base_start_x = (self.theme.BASE_WIDTH - total_width) // 2
 
         for i, slot in enumerate(self.slots):
-            x_pos = start_x + i * (slot_width + spacing)
-            self._render_slot_card(
-                surface, slot, x_pos, start_y, slot_width, slot_height
-            )
+            base_x = base_start_x + i * (self.base_slot_width + self.base_spacing)
+            self._render_slot_card(surface, slot, base_x, self.base_start_y)
 
-    def _render_slot_card(self, surface, slot, x, y, width, height):
+    def _render_slot_card(self, surface, slot, base_x, base_y):
         """Renderiza um card de slot individual"""
-        # Fundo do card
-        card_rect = pygame.Rect(x, y, width, height)
-        pygame.draw.rect(surface, (30, 30, 40), card_rect, border_radius=15)
-
-        # Borda (dourada se auto, azul se manual)
-        border_color = (
-            (255, 215, 0) if slot.get("slot_type") == "auto" else (100, 150, 255)
+        # Escala o card
+        card_rect = self.ui_scaler.rect(
+            base_x, base_y, self.base_slot_width, self.base_slot_height
         )
+
+        # Fundo e borda
+        border_color = (
+            self.theme.COLOR_ACCENT_GOLD
+            if slot.get("slot_type") == "auto"
+            else self.theme.COLOR_ACCENT_BLUE
+        )
+
+        pygame.draw.rect(surface, self.theme.COLOR_BG_CARD, card_rect, border_radius=15)
         pygame.draw.rect(surface, border_color, card_rect, 3, border_radius=15)
 
         # Título do slot
-        title_font = self.game.game_config.get_font("title", 24)
+        title_font = self.ui_scaler.get_themed_font("hud")
         slot_title = slot.get("save_title", f"Save {slot.get('save_slot_id', '?')}")
         title_surface = title_font.render(slot_title, True, border_color)
-        surface.blit(title_surface, (x + 20, y + 15))
 
-        # Se o slot está vazio
+        padding_x = self.ui_scaler.scale(20, "x")
+        padding_y_title = self.ui_scaler.scale(15, "y")
+        surface.blit(
+            title_surface, (card_rect.x + padding_x, card_rect.y + padding_y_title)
+        )
+
+        # Se vazio
         if not slot.get("hero_name"):
-            empty_font = self.game.game_config.get_font("menu", 36)
-            empty_text = empty_font.render("[ VAZIO ]", True, (100, 100, 100))
+            empty_font = self.ui_scaler.get_themed_font("title")
+            empty_text = empty_font.render(
+                "[ VAZIO ]", True, self.theme.COLOR_TEXT_HINT
+            )
             surface.blit(
                 empty_text,
-                (x + width // 2 - empty_text.get_width() // 2, y + height // 2 - 30),
+                (
+                    card_rect.centerx - empty_text.get_width() // 2,
+                    card_rect.centery
+                    - empty_text.get_height() // 2
+                    - self.ui_scaler.scale(15, "y"),
+                ),
             )
 
-            hint_font = self.game.game_config.get_font("menu", 18)
+            hint_font = self.ui_scaler.get_themed_font("menu_small")
             hint_text = hint_font.render(
-                "Nenhum save gravado neste slot", True, (150, 150, 150)
+                "Nenhum save gravado neste slot", True, self.theme.COLOR_TEXT_HINT
             )
             surface.blit(
                 hint_text,
-                (x + width // 2 - hint_text.get_width() // 2, y + height // 2 + 10),
+                (
+                    card_rect.centerx - hint_text.get_width() // 2,
+                    card_rect.centery + self.ui_scaler.scale(10, "y"),
+                ),
             )
             return
 
-        # Informações do save
-        info_font = self.game.game_config.get_font("menu", 20)
+        # Informações do save ocupado
+        info_font = self.ui_scaler.get_themed_font("menu")
 
         # Descrição (se houver)
         description = slot.get("save_description", "")
         if description:
-            desc_text = info_font.render(description[:50], True, (180, 180, 180))
-            surface.blit(desc_text, (x + 20, y + 50))
+            desc_text = info_font.render(
+                description[:50], True, self.theme.COLOR_TEXT_SECONDARY
+            )
+            desc_y = self.ui_scaler.scale(45, "y")
+            surface.blit(desc_text, (card_rect.x + padding_x, card_rect.y + desc_y))
 
         # Nome do herói
         name_text = info_font.render(
-            f"Herói: {slot['hero_name']}", True, (255, 255, 255)
+            f"Herói: {slot['hero_name']}", True, self.theme.COLOR_TEXT_PRIMARY
         )
-        surface.blit(name_text, (x + 20, y + 85))
+        name_y = self.ui_scaler.scale(75, "y")
+        surface.blit(name_text, (card_rect.x + padding_x, card_rect.y + name_y))
 
         # Nível e Classe
         level_class = (
             f"Nv.{slot.get('hero_level', 1)} - {slot.get('hero_class', 'N/A')}"
         )
-        level_text = info_font.render(level_class, True, (200, 200, 200))
-        surface.blit(level_text, (x + 20, y + 115))
+        level_text = info_font.render(
+            level_class, True, self.theme.COLOR_TEXT_SECONDARY
+        )
+        # Ajustado para 105
+        level_y = self.ui_scaler.scale(105, "y")
+        surface.blit(level_text, (card_rect.x + padding_x, card_rect.y + level_y))
 
         # Zona
         zone_text = info_font.render(
-            f"Zona: {slot.get('zone_name', 'Desconhecida')}", True, (150, 200, 255)
+            f"Zona: {slot.get('zone_name', 'Desconhecida')}",
+            True,
+            self.theme.COLOR_ACCENT_BLUE,
         )
-        surface.blit(zone_text, (x + 20, y + 145))
+        # Ajustado para 135
+        zone_y = self.ui_scaler.scale(135, "y")
+        surface.blit(zone_text, (card_rect.x + padding_x, card_rect.y + zone_y))
 
         # Data/Hora do save
         last_saved = slot.get("last_saved", "")
         if last_saved:
             try:
-                # Tenta formatar a data
                 dt = datetime.fromisoformat(last_saved.replace(" ", "T"))
                 date_str = dt.strftime("%d/%m/%Y %H:%M")
             except:
                 date_str = last_saved[:16] if len(last_saved) > 16 else last_saved
 
-            date_font = self.game.game_config.get_font("menu", 18)
-            date_text = date_font.render(date_str, True, (150, 150, 150))
+            date_font = self.ui_scaler.get_themed_font("menu_small")
+            date_text = date_font.render(date_str, True, self.theme.COLOR_TEXT_HINT)
             surface.blit(
-                date_text, (x + width - date_text.get_width() - 20, y + height - 30)
+                date_text,
+                (card_rect.right - date_text.get_width() - 20, card_rect.bottom - 30),
             )
 
-    def _render_confirm_message(self, surface):
-        """Renderiza mensagem de confirmação de exclusão de save"""
-        # Overlay semi-transparente
-        overlay = pygame.Surface((1920, 1080), pygame.SRCALPHA)
+    def _render_confirm_modal(self, surface):
+        """Renderiza modal de confirmação de exclusão"""
+        # Overlay
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 128))
         surface.blit(overlay, (0, 0))
 
-        # Caixa de confirmação
-        box_width = 600
-        box_height = 200
-        box_x = (1920 - box_width) // 2
-        box_y = (1080 - box_height) // 2
-
-        pygame.draw.rect(
-            surface,
-            (40, 40, 50),
-            (box_x, box_y, box_width, box_height),
-            border_radius=20,
-        )
-        pygame.draw.rect(
-            surface,
-            (255, 100, 100),
-            (box_x, box_y, box_width, box_height),
-            3,
-            border_radius=20,
+        # Caixa do modal
+        base_box_x = (self.theme.BASE_WIDTH - self.theme.MODAL_WIDTH) // 2
+        base_box_y = (self.theme.BASE_HEIGHT - 200) // 2
+        modal_rect = self.ui_scaler.rect(
+            base_box_x, base_box_y, self.theme.MODAL_WIDTH, 200
         )
 
-        # Texto de confirmação
-        title_font = self.game.game_config.get_font("title", 36)
-        title_text = title_font.render("⚠️ CONFIRMAÇÃO", True, (255, 100, 100))
+        pygame.draw.rect(
+            surface, self.theme.COLOR_BG_MODAL, modal_rect, border_radius=20
+        )
+        pygame.draw.rect(
+            surface, self.theme.COLOR_BORDER_WARNING, modal_rect, 3, border_radius=20
+        )
+
+        # Texto
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "⚠️ CONFIRMAÇÃO", True, self.theme.COLOR_TEXT_WARNING
+        )
         surface.blit(
             title_text,
-            (box_x + box_width // 2 - title_text.get_width() // 2, box_y + 30),
+            (
+                modal_rect.centerx - title_text.get_width() // 2,
+                modal_rect.y + self.ui_scaler.scale(30, "y"),
+            ),
         )
 
-        # Identifica tipo de save
+        # Tipo de save
         slot = self.slots[self.confirm_delete_slot - 1]
         save_type = (
             "Auto-Save"
@@ -452,22 +485,33 @@ class SaveSelectState(BaseState):
             else f"Save Manual {self.confirm_delete_slot}"
         )
 
-        msg_font = self.game.game_config.get_font("menu", 24)
-        msg_text = msg_font.render(f"Deletar {save_type}?", True, (255, 255, 255))
-        surface.blit(
-            msg_text, (box_x + box_width // 2 - msg_text.get_width() // 2, box_y + 90)
-        )
-
-        hint_font = self.game.game_config.get_font("menu", 20)
-        # Botão renderizado separadamente
-
-        hint2_text = hint_font.render(
-            "Pressione ESC para cancelar", True, (150, 150, 150)
+        msg_font = self.ui_scaler.get_themed_font("menu")
+        msg_text = msg_font.render(
+            f"Deletar {save_type}?", True, self.theme.COLOR_TEXT_PRIMARY
         )
         surface.blit(
-            hint2_text,
-            (box_x + box_width // 2 - hint2_text.get_width() // 2, box_y + 175),
+            msg_text,
+            (
+                modal_rect.centerx - msg_text.get_width() // 2,
+                modal_rect.y + self.ui_scaler.scale(90, "y"),
+            ),
         )
+
+        hint_font = self.ui_scaler.get_themed_font("menu_small")
+        hint_text = hint_font.render(
+            "Pressione ESC para cancelar", True, self.theme.COLOR_TEXT_HINT
+        )
+        surface.blit(
+            hint_text,
+            (
+                modal_rect.centerx - hint_text.get_width() // 2,
+                modal_rect.y + self.ui_scaler.scale(150, "y"),
+            ),
+        )
+
+        # Botão de confirmação
+        if self.confirm_button:
+            self.confirm_button.render(surface)
 
     def enter(self):
         """Chamado ao entrar no estado"""

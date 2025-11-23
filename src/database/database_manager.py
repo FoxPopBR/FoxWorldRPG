@@ -120,6 +120,31 @@ class DatabaseManager:
         except sqlite3.Error as e:
             print(f"❌ Erro durante migração: {e}")
 
+        # Migração de Schema: Adiciona coluna save_type se não existir
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("PRAGMA table_info(save_slots)")
+            columns = [info[1] for info in cursor.fetchall()]
+
+            if "save_slots" in self._get_tables() and "save_type" not in columns:
+                print(
+                    "🔧 Migrando schema: Adicionando coluna 'save_type' em 'save_slots'"
+                )
+                cursor.execute(
+                    "ALTER TABLE save_slots ADD COLUMN save_type TEXT DEFAULT 'manual'"
+                )
+                self.connection.commit()
+                print("✅ Schema migrado com sucesso")
+
+        except sqlite3.Error as e:
+            print(f"⚠️ Erro na migração de schema (save_slots): {e}")
+
+    def _get_tables(self):
+        """Retorna lista de tabelas existentes"""
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        return [row[0] for row in cursor.fetchall()]
+
     def _smart_convert_value(self, value: str, data_type: str) -> Any:
         """Conversão inteligente que detecta automaticamente o tipo real"""
         # Primeiro, tenta converter baseado no data_type declarado

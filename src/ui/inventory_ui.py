@@ -1,45 +1,54 @@
+# src/ui/inventory_ui.py
 import pygame
 from typing import Tuple, Optional
-from src.ui.responsive_ui import ResponsiveUI
 
 
 class InventoryUI:
-    """Interface de usuário para o inventário"""
+    """Interface de usuário para o inventário - REFATORADO UIScaler"""
 
     def __init__(self, game):
         self.game = game
         self.scroll_offset = 0
-        self.item_height = 50
-        self.padding = 10
 
-        # Cores
-        self.text_color = (255, 255, 255)
-        self.bg_color = (30, 30, 30, 200)
-        self.border_color = (100, 100, 100)
-        self.highlight_color = (60, 60, 80)
+        # Acesso rápido aos sistemas
+        self.theme = game.game_config.theme
+        self.ui_scaler = game.ui_scaler
+
+        # Dimensões base (escaladas depois)
+        self.item_base_height = 50
+        self.padding_base = 10
 
     def render(self, surface: pygame.Surface, rect: pygame.Rect):
         """Renderiza a lista de inventário dentro do rect fornecido"""
-        hero = self.game.hero_manager.get_active_hero()
+        hero = self.game.game_config.hero_manager.get_active_hero()
         if not hero:
             return
 
-        # Desenha fundo
+        # Desenha fundo com transparência
         s = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-        s.fill(self.bg_color)
+        bg_color = (*self.theme.COLOR_BG_CARD, 200)  # RGB + Alpha
+        s.fill(bg_color)
         surface.blit(s, rect)
-        pygame.draw.rect(surface, self.border_color, rect, 2)
+        pygame.draw.rect(surface, self.theme.COLOR_BORDER_EMPTY, rect, 2)
 
         # Título
-        font_title = self.game.game_config.get_font("menu", 24)
+        font_title = self.ui_scaler.get_themed_font("menu")
         title = font_title.render(
-            f"Inventário ({len(hero.inventory)} itens)", True, self.text_color
+            f"Inventário ({len(hero.inventory)} itens)",
+            True,
+            self.theme.COLOR_TEXT_PRIMARY,
         )
-        surface.blit(title, (rect.x + 10, rect.y + 10))
+        title_padding = self.ui_scaler.scale(10, "x")
+        surface.blit(title, (rect.x + title_padding, rect.y + title_padding))
 
         # Área da lista
+        list_y_offset = self.ui_scaler.scale(40, "y")
+        list_padding = self.ui_scaler.scale(5, "x")
         list_rect = pygame.Rect(
-            rect.x + 5, rect.y + 40, rect.width - 10, rect.height - 50
+            rect.x + list_padding,
+            rect.y + list_y_offset,
+            rect.width - list_padding * 2,
+            rect.height - list_y_offset - self.ui_scaler.scale(10, "y"),
         )
 
         # Clip para rolagem
@@ -47,65 +56,78 @@ class InventoryUI:
         surface.set_clip(list_rect)
 
         y = list_rect.y - self.scroll_offset
+        item_height = self.ui_scaler.scale(self.item_base_height, "y")
+        item_spacing = self.ui_scaler.scale(5, "y")
 
-        font_item = self.game.game_config.get_font("menu", 20)
-        font_desc = self.game.game_config.get_font("menu", 16)
+        font_item = self.ui_scaler.get_themed_font("menu_small")
+        font_desc = self.ui_scaler.get_themed_font("menu_tiny")
 
         for item in hero.inventory:
             # Item Row Background
-            item_rect = pygame.Rect(list_rect.x, y, list_rect.width, self.item_height)
+            item_rect = pygame.Rect(list_rect.x, y, list_rect.width, item_height)
 
             # Verifica visibilidade
-            if y + self.item_height < list_rect.y or y > list_rect.bottom:
-                y += self.item_height + 5
+            if y + item_height < list_rect.y or y > list_rect.bottom:
+                y += item_height + item_spacing
                 continue
 
-            # Hover effect (simples, baseado na posição do mouse se necessário, mas aqui é estático por enquanto)
-            # pygame.draw.rect(surface, self.highlight_color, item_rect)
-
-            # Ícone
+            # Ícone (se disponível)
             icon = self.game.game_config.resource_manager.get_item_icon(
                 item.get("name", "Item")
             )
+            icon_size = self.ui_scaler.scale(32, "x")
+            icon_padding = self.ui_scaler.scale(5, "x")
+
             if icon:
-                icon = pygame.transform.scale(icon, (32, 32))
-                surface.blit(icon, (item_rect.x + 5, item_rect.y + 9))
+                icon = pygame.transform.scale(icon, (icon_size, icon_size))
+                icon_y = item_rect.y + (item_height - icon_size) // 2
+                surface.blit(icon, (item_rect.x + icon_padding, icon_y))
 
             # Nome e Quantidade
+            text_x_offset = icon_padding + icon_size + self.ui_scaler.scale(8, "x")
+
             name_text = font_item.render(
-                f"{item.get('name', 'Unknown')}", True, self.text_color
+                f"{item.get('name', 'Unknown')}", True, self.theme.COLOR_TEXT_PRIMARY
             )
             qty_text = font_item.render(
-                f"x{item.get('quantity', 1)}", True, (200, 200, 100)
+                f"x{item.get('quantity', 1)}", True, self.theme.COLOR_ACCENT
             )
 
-            surface.blit(name_text, (item_rect.x + 45, item_rect.y + 5))
+            name_y = item_rect.y + self.ui_scaler.scale(5, "y")
+            surface.blit(name_text, (item_rect.x + text_x_offset, name_y))
+
+            qty_padding = self.ui_scaler.scale(10, "x")
             surface.blit(
-                qty_text, (item_rect.right - qty_text.get_width() - 10, item_rect.y + 5)
+                qty_text, (item_rect.right - qty_text.get_width() - qty_padding, name_y)
             )
 
             # Descrição (curta)
             desc = item.get("description", "")
-            if len(desc) > 40:
-                desc = desc[:37] + "..."
-            desc_text = font_desc.render(desc, True, (180, 180, 180))
-            surface.blit(desc_text, (item_rect.x + 45, item_rect.y + 28))
+            max_desc_len = 40
+            if len(desc) > max_desc_len:
+                desc = desc[: max_desc_len - 3] + "..."
+
+            desc_text = font_desc.render(desc, True, self.theme.COLOR_TEXT_SECONDARY)
+            desc_y = name_y + self.ui_scaler.scale(23, "y")
+            surface.blit(desc_text, (item_rect.x + text_x_offset, desc_y))
 
             # Divisor
             pygame.draw.line(
                 surface,
-                (60, 60, 60),
+                self.theme.COLOR_BORDER_EMPTY,
                 (item_rect.x, item_rect.bottom - 1),
                 (item_rect.right, item_rect.bottom - 1),
+                1,
             )
 
-            y += self.item_height + 5
+            y += item_height + item_spacing
 
         surface.set_clip(old_clip)
 
     def handle_event(self, event):
         """Gerencia rolagem"""
         if event.type == pygame.MOUSEWHEEL:
-            self.scroll_offset -= event.y * 20
+            scroll_speed = self.ui_scaler.scale(20, "y")
+            self.scroll_offset -= event.y * scroll_speed
             self.scroll_offset = max(0, self.scroll_offset)
             # TODO: Limitar scroll máximo baseado no número de itens

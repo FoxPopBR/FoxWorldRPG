@@ -1,8 +1,8 @@
 import pygame
 from src.states.base_state import BaseState
 from src.ui.button import Button
-from src.ui.responsive_ui import ResponsiveUI
 from src.ui.button_manager import ButtonManager
+from src.ui.menu_assets import load_menu_visual_assets, render_menu_background
 
 
 class AudioSettingsState(BaseState):
@@ -10,8 +10,13 @@ class AudioSettingsState(BaseState):
 
     def __init__(self, game):
         super().__init__(game)
+        print("✅ AudioSettingsState carregado com sucesso (Versão Padronizada)")
         self.volume_controls = []
         self.action_buttons = []
+
+        # Carrega assets visuais do menu
+        self.menu_assets = load_menu_visual_assets(game)
+
         self._create_ui()
 
     def _create_ui(self):
@@ -43,69 +48,74 @@ class AudioSettingsState(BaseState):
 
             # Botão -
             minus_btn = Button(
-                ResponsiveUI.BASE_WIDTH // 2
-                - control_width
-                - label_width // 2
-                - spacing,
+                self.theme.BASE_WIDTH // 2 - control_width - label_width // 2 - spacing,
                 y_pos,
                 control_width,
                 control_height,
                 "-",
                 lambda k=volume_key: self._adjust_volume(k, -0.1),
-                36,
+                font_size=self.theme.FONT_TITLE_SMALL,
+                text_color=(255, 255, 255),
+                button_image_normal=self.menu_assets["small_button_normal"],
+                button_image_pressed=self.menu_assets["small_button_pressed"],
             )
 
             # Label com valor atual
             label_btn = Button(
-                ResponsiveUI.BASE_WIDTH // 2 - label_width // 2,
+                self.theme.BASE_WIDTH // 2 - label_width // 2,
                 y_pos,
                 label_width,
                 control_height,
                 f"{label}: {int(current_volume * 100)}%",
                 None,
-                28,
+                font_size=self.theme.FONT_MENU_LARGE,
+                text_color=(255, 255, 255),
+                button_image_normal=self.menu_assets["button_normal"],
+                button_image_pressed=self.menu_assets["button_pressed"],
             )
             label_btn.action = None
 
             # Botão +
             plus_btn = Button(
-                ResponsiveUI.BASE_WIDTH // 2 + label_width // 2 + spacing,
+                self.theme.BASE_WIDTH // 2 + label_width // 2 + spacing,
                 y_pos,
                 control_width,
                 control_height,
                 "+",
                 lambda k=volume_key: self._adjust_volume(k, 0.1),
-                36,
+                font_size=self.theme.FONT_TITLE_SMALL,
+                text_color=(255, 255, 255),
+                button_image_normal=self.menu_assets["small_button_normal"],
+                button_image_pressed=self.menu_assets["small_button_pressed"],
             )
 
             self.volume_controls.append((minus_btn, label_btn, plus_btn))
 
-        # ✅ CORREÇÃO: Botões de ação posicionados MAIS ABAIXO
+        # Botões de ação posicionados MAIS ABAIXO
         action_start_y = start_y + len(volume_types) * (control_height + 20) + 80
 
+        # Botões de ação (com texturas)
+        base_button_width = 400
+        button_x = (self.theme.BASE_WIDTH - base_button_width) // 2
+
         action_configs = [
-            (
-                ResponsiveUI.BASE_WIDTH // 2 - 300,
-                action_start_y,
-                600,
-                60,
-                "Resetar Todos os Volumes",
-                self._reset_volumes,
-                28,
-            ),
-            (
-                ResponsiveUI.BASE_WIDTH // 2 - 300,
-                action_start_y + 90,
-                600,
-                60,
-                "Voltar",
-                self._back,
-                32,
-            ),
+            (action_start_y, "Resetar Todos os Volumes", self._reset_volumes),
+            (action_start_y + 90, "Voltar", self._back),
         ]
 
-        for x, y, width, height, text, action, font_size in action_configs:
-            button = Button(x, y, width, height, text, action, font_size)
+        for y, text, action in action_configs:
+            button = Button(
+                button_x,
+                y,
+                base_button_width,
+                60,
+                text,
+                action,
+                font_size=self.theme.FONT_MENU_LARGE,
+                text_color=(255, 255, 255),
+                button_image_normal=self.menu_assets["button_normal"],
+                button_image_pressed=self.menu_assets["button_pressed"],
+            )
             self.action_buttons.append(button)
 
     def _adjust_volume(self, volume_key: str, change: float):
@@ -174,52 +184,58 @@ class AudioSettingsState(BaseState):
                 all_buttons.extend([minus_btn, plus_btn])
             all_buttons.extend(self.action_buttons)
 
-            # ✅ CORREÇÃO: Processar eventos de mouse nos botões
+            # Processar eventos de mouse nos botões
             for button in all_buttons:
-                if hasattr(button, "handle_event"):
-                    if button.handle_event(event, self.game):
-                        break
+                if button.handle_event(event):
+                    break
 
     def update(self):
+        dt = 1.0 / 60.0
+        mouse_pos = pygame.mouse.get_pos()
+
         all_buttons = []
         for minus_btn, label_btn, plus_btn in self.volume_controls:
             all_buttons.extend([minus_btn, label_btn, plus_btn])
         all_buttons.extend(self.action_buttons)
 
-        ButtonManager.update_buttons(all_buttons, self.game)
+        for button in all_buttons:
+            button.update(mouse_pos, dt=dt)
 
     def render(self, surface):
-        screen_width, screen_height = surface.get_size()
-
-        surface.fill(self.game.game_config.get_color("background"))
-
-        title_font_size = ResponsiveUI.scale_font_size(48, screen_width, screen_height)
-        title_font = self.game.game_config.get_font("title", title_font_size)
-        title_text = title_font.render(
-            "Configurações de Áudio", True, self.game.game_config.get_color("text")
+        # Fundo com escurecimento
+        render_menu_background(
+            surface, self.menu_assets["background"], self.theme, darkness=0.5
         )
-        title_rect = title_text.get_rect(center=(screen_width // 2, 100))
+
+        # Título
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "Configurações de Áudio", True, self.theme.COLOR_TEXT_PRIMARY
+        )
+        title_y = self.ui_scaler.scale(100, "y")
+        title_rect = title_text.get_rect(center=(surface.get_width() // 2, title_y))
         surface.blit(title_text, title_rect)
 
-        instruction_font_size = ResponsiveUI.scale_font_size(
-            20, screen_width, screen_height
-        )
-        instruction_font = self.game.game_config.get_font("menu", instruction_font_size)
+        # Instrução
+        instruction_font = self.ui_scaler.get_themed_font("menu")
         instruction_text = instruction_font.render(
             "Use os botões + e - para ajustar os volumes (10% por clique)",
             True,
-            self.game.game_config.get_color("text_secondary"),
+            self.theme.COLOR_TEXT_SECONDARY,
         )
-        instruction_rect = instruction_text.get_rect(center=(screen_width // 2, 150))
+        instruction_y = self.ui_scaler.scale(150, "y")
+        instruction_rect = instruction_text.get_rect(
+            center=(surface.get_width() // 2, instruction_y)
+        )
         surface.blit(instruction_text, instruction_rect)
 
         for minus_btn, label_btn, plus_btn in self.volume_controls:
-            minus_btn.render(surface, self.game.game_config)
-            label_btn.render(surface, self.game.game_config)
-            plus_btn.render(surface, self.game.game_config)
+            minus_btn.render(surface)
+            label_btn.render(surface)
+            plus_btn.render(surface)
 
         for button in self.action_buttons:
-            button.render(surface, self.game.game_config)
+            button.render(surface)
 
     def enter(self):
         print("Entrando nas configurações de áudio")

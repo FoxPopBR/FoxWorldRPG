@@ -20,6 +20,7 @@ class SaveSlotsTable(TableCreator):
                 game_slot_id INTEGER NOT NULL CHECK(game_slot_id IN (1, 2, 3, 4, 5)),
                 save_slot_id INTEGER NOT NULL CHECK(save_slot_id IN (1, 2, 3)),
                 slot_type TEXT NOT NULL CHECK(slot_type IN ('auto', 'manual')),
+                save_type TEXT DEFAULT 'manual',
                 save_title TEXT DEFAULT 'Save sem título',
                 save_description TEXT DEFAULT '',
                 hero_name TEXT,

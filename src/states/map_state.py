@@ -12,7 +12,7 @@ class MapState(BaseState):
     """Estado que exibe o mapa do mundo"""
 
     def __init__(self, game):
-        self.game = game
+        super().__init__(game)
         self.buttons = []
         self._create_ui()
 
@@ -21,7 +21,15 @@ class MapState(BaseState):
         self.buttons.clear()
 
         # Botão voltar
-        back_btn = Button(100, 980, 200, 60, "VOLTAR (ESC)", self._back_to_game, 24)
+        back_btn = Button(
+            100,
+            980,
+            200,
+            60,
+            "VOLTAR (ESC)",
+            self._back_to_game,
+            font_size=self.theme.FONT_MENU_MEDIUM,
+        )
         self.buttons.append(back_btn)
 
     def _back_to_game(self):
@@ -41,27 +49,42 @@ class MapState(BaseState):
 
     def update(self):
         """Atualiza o estado"""
-        ButtonManager.update_buttons(self.buttons, self.game)
+        mouse_pos = pygame.mouse.get_pos()
+        for btn in self.buttons:
+            btn.update(mouse_pos)
 
     def render(self, surface):
         """Renderiza a tela"""
-        screen_width, screen_height = surface.get_size()
+        surface.fill(self.theme.COLOR_BACKGROUND)
 
-        # Fundo
-        surface.fill(self.game.game_config.get_color("background"))
+        screen_width = surface.get_width()
+        screen_height = surface.get_height()
 
         # Título
-        title_font = self.game.game_config.get_font("title", 60)
-        title_text = title_font.render("MAPA DO MUNDO", True, (255, 255, 255))
-        surface.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, 40))
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "MAPA DO MUNDO", True, self.theme.COLOR_TEXT_PRIMARY
+        )
 
-        # Área do mapa (placeholder)
-        map_rect = pygame.Rect(200, 150, 1520, 750)
-        pygame.draw.rect(surface, (30, 30, 40), map_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), map_rect, 2, border_radius=20)
+        title_y = self.ui_scaler.scale(40, "y")
+        surface.blit(
+            title_text, (screen_width // 2 - title_text.get_width() // 2, title_y)
+        )
+
+        # Área do mapa
+        map_x = self.ui_scaler.scale(200, "x")
+        map_y = self.ui_scaler.scale(150, "y")
+        map_w = self.ui_scaler.scale(1520, "x")
+        map_h = self.ui_scaler.scale(750, "y")
+
+        map_rect = pygame.Rect(map_x, map_y, map_w, map_h)
+        pygame.draw.rect(surface, self.theme.COLOR_BG_CARD, map_rect, border_radius=20)
+        pygame.draw.rect(
+            surface, self.theme.COLOR_BORDER_DEFAULT, map_rect, 2, border_radius=20
+        )
 
         # Grade simulando mapa
-        grid_size = 50
+        grid_size = self.ui_scaler.scale(50, "x")
         for x in range(map_rect.left, map_rect.right, grid_size):
             pygame.draw.line(
                 surface, (40, 40, 50), (x, map_rect.top), (x, map_rect.bottom), 1
@@ -74,30 +97,49 @@ class MapState(BaseState):
         # Indicador de posição do jogador (centro do mapa)
         player_x = map_rect.centerx
         player_y = map_rect.centery
-        pygame.draw.circle(surface, (255, 100, 100), (player_x, player_y), 15)
-        pygame.draw.circle(surface, (255, 200, 200), (player_x, player_y), 10)
+
+        radius_outer = self.ui_scaler.scale(15, "x")
+        radius_inner = self.ui_scaler.scale(10, "x")
+
+        pygame.draw.circle(surface, (255, 100, 100), (player_x, player_y), radius_outer)
+        pygame.draw.circle(surface, (255, 200, 200), (player_x, player_y), radius_inner)
 
         # Texto placeholder
-        placeholder_font = self.game.game_config.get_font("menu", 28)
+        placeholder_font = self.ui_scaler.get_themed_font("menu")
         placeholder_text = placeholder_font.render(
-            "🗺️ Sistema de Mapa em Desenvolvimento", True, (180, 180, 180)
+            "🗺️ Sistema de Mapa em Desenvolvimento", True, self.theme.COLOR_TEXT_HINT
         )
-        surface.blit(placeholder_text, (map_rect.left + 50, map_rect.bottom - 100))
+
+        text_x = map_rect.left + self.ui_scaler.scale(50, "x")
+        text_y = map_rect.bottom - self.ui_scaler.scale(100, "y")
+        surface.blit(placeholder_text, (text_x, text_y))
 
         # Legenda
-        legend_font = self.game.game_config.get_font("menu", 20)
-        legend_text = legend_font.render("🔴 Você está aqui", True, (220, 220, 220))
-        surface.blit(legend_text, (map_rect.left + 50, map_rect.bottom - 60))
+        legend_font = self.ui_scaler.get_themed_font("menu_small")
+        legend_text = legend_font.render(
+            "🔴 Você está aqui", True, self.theme.COLOR_TEXT_SECONDARY
+        )
+
+        legend_y = map_rect.bottom - self.ui_scaler.scale(60, "y")
+        surface.blit(legend_text, (text_x, legend_y))
 
         # Info de atalho
-        info_font = self.game.game_config.get_font("menu", 20)
+        info_font = self.ui_scaler.get_themed_font("menu_small")
         info_text = info_font.render(
-            "Pressione ESC ou F3 para voltar ao jogo", True, (150, 150, 150)
+            "Pressione ESC ou F3 para voltar ao jogo",
+            True,
+            self.theme.COLOR_TEXT_SECONDARY,
         )
+        info_y = screen_height - self.ui_scaler.scale(60, "y")
         surface.blit(
             info_text,
-            (screen_width // 2 - info_text.get_width() // 2, screen_height - 60),
+            (screen_width // 2 - info_text.get_width() // 2, info_y),
         )
 
         # Renderiza botões
-        ButtonManager.render_buttons(self.buttons, surface, self.game.game_config)
+        for btn in self.buttons:
+            btn.render(surface)
+
+    def on_resize(self, old_size, new_size):
+        """Recria UI ao redimensionar"""
+        self._create_ui()

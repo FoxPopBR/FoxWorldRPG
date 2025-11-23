@@ -304,3 +304,22 @@ class HeroManager:
                 "inteligencia": hero.stats.inteligencia,
             },
         }
+
+    def get_hero_by_slot(self, slot_id: int) -> Optional[Hero]:
+        """Retorna o herói associado a um slot de jogo"""
+        try:
+            cursor = self.database.connection.cursor()
+            cursor.execute(
+                "SELECT player_name FROM game_slots WHERE slot_id = ?", (slot_id,)
+            )
+            row = cursor.fetchone()
+
+            if row and row[0]:
+                player_name = row[0]
+                return self.get_hero(player_name)
+
+            return None
+
+        except Exception as e:
+            print(f"❌ Erro ao buscar herói do slot {slot_id}: {e}")
+            return None

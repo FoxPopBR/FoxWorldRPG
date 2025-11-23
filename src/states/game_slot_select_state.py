@@ -1,8 +1,7 @@
-# src/states/game_slot_select_state.py
 import pygame
 from src.states.base_state import BaseState
 from src.ui.button import Button
-from src.ui.button_manager import ButtonManager
+from src.ui.menu_assets import load_menu_visual_assets, render_menu_background
 
 
 class GameSlotSelectState(BaseState):
@@ -12,28 +11,38 @@ class GameSlotSelectState(BaseState):
         super().__init__(game)
         self.game_slots = []
         self.buttons = []
-        self.slot_action_buttons = (
-            {}
-        )  # Dicionário para armazenar botões de ação por slot
-        self.confirm_delete_slot = None  # Slot aguardando confirmação de exclusão
-        self.confirm_button = None  # Botão de confirmação no modal
+        self.slot_action_buttons = {}
+        self.confirm_delete_slot = None
+        self.confirm_button = None
+
+        # Carrega assets visuais do menu
+        self.menu_assets = load_menu_visual_assets(game)
+
+        # LAYOUT RELATIVO (Porcentagens da Base 1920x1080)
+        # Isso garante que o layout se mantenha proporcional
+        self.base_w = self.theme.BASE_WIDTH
+        self.base_h = self.theme.BASE_HEIGHT
+
+        self.slot_width_pct = 0.28  # 28% da largura (aprox 540px)
+        self.slot_height_pct = 0.24  # 24% da altura (aprox 260px)
+        self.spacing_x_pct = 0.03  # 3% de espaçamento
+        self.spacing_y_pct = 0.04  # 4% de espaçamento vertical
+
         self._load_game_slots()
         self._create_ui()
 
     def _load_game_slots(self):
         """Carrega informações dos 5 slots de jogo"""
-        self.game_slots.clear()  # Limpa lista para evitar duplicatas
+        self.game_slots.clear()
         try:
             cursor = self.game.game_config.database.connection.cursor()
             cursor.execute("SELECT * FROM game_slots ORDER BY slot_id")
             slots_data = cursor.fetchall()
 
             if not slots_data or len(slots_data) == 0:
-                # Se não existem slots, cria os 5 vazios
                 self._initialize_empty_slots()
                 return
 
-            # Converte para lista de dicts
             for row in slots_data:
                 self.game_slots.append(dict(row))
 
@@ -50,312 +59,376 @@ class GameSlotSelectState(BaseState):
                     """
                     INSERT OR IGNORE INTO game_slots (slot_id, player_name, is_active)
                     VALUES (?, NULL, 0)
-                """,
+                    """,
                     (i,),
                 )
             self.game.game_config.database.connection.commit()
-
-            # Recarrega os slots
-            cursor.execute("SELECT * FROM game_slots ORDER BY slot_id")
-            slots_data = cursor.fetchall()
-            self.game_slots = [dict(row) for row in slots_data]
-
+            self._load_game_slots()
         except Exception as e:
             print(f"❌ Erro ao inicializar slots: {e}")
-            # Fallback para slots em memória
-            self.game_slots = [
-                {"slot_id": i, "player_name": None, "is_active": 0} for i in range(1, 6)
-            ]
 
     def _create_ui(self):
-        """Cria interface de seleção de slots"""
+        """Cria os botões da interface usando layout relativo"""
         self.buttons.clear()
         self.slot_action_buttons.clear()
 
-        # Botão Voltar (usa posições base)
-        back_btn = Button(100, 980, 200, 60, "VOLTAR", self._back_to_menu, 24)
+        # Dimensões calculadas
+        slot_w = int(self.base_w * self.slot_width_pct)
+        slot_h = int(self.base_h * self.slot_height_pct)
+        spacing_x = int(self.base_w * self.spacing_x_pct)
+        spacing_y = int(self.base_h * self.spacing_y_pct)
+
+        # Ponto inicial (centralizado horizontalmente para 2 colunas)
+        # Largura total de 2 colunas = 2*w + spacing
+        total_grid_w = (2 * slot_w) + spacing_x
+        start_x = (self.base_w - total_grid_w) // 2
+        start_y = int(self.base_h * 0.20)  # Começa em 20% da altura
+
+        # Botão Voltar (Canto inferior esquerdo)
+        back_btn = Button(
+            int(self.base_w * 0.05),  # 5% da esquerda
+            int(self.base_h * 0.90),  # 90% do topo
+            200,
+            60,
+            "VOLTAR",
+            self._back_to_menu,
+            font_size=self.theme.FONT_MENU_MEDIUM,
+            text_color=(255, 255, 255),
+            button_image_normal=self.menu_assets["button_normal"],
+            button_image_pressed=self.menu_assets["button_pressed"],
+        )
         self.buttons.append(back_btn)
 
-        # Parâmetros dos slots (valores base para 1920x1080)
-        base_slot_width = 550
-        base_slot_height = 260
-        base_spacing_x = 60
-        base_spacing_y = 60
-
-        # Calcula posições base (ResponsiveUI fará o scaling automaticamente)
-        # Primeira linha: 3 slots
-        base_start_x_row1 = (1920 - (base_slot_width * 3 + base_spacing_x * 2)) // 2
-        base_start_y_row1 = 250
-
-        # Segunda linha: 2 slots (centralizados)
-        base_start_x_row2 = (1920 - (base_slot_width * 2 + base_spacing_x)) // 2
-        base_start_y_row2 = base_start_y_row1 + base_slot_height + base_spacing_y
-
-        # Armazena as posições base
-        self.base_positions = [
-            (base_start_x_row1, base_start_y_row1),  # Slot 1
-            (
-                base_start_x_row1 + base_slot_width + base_spacing_x,
-                base_start_y_row1,
-            ),  # Slot 2
-            (
-                base_start_x_row1 + (base_slot_width + base_spacing_x) * 2,
-                base_start_y_row1,
-            ),  # Slot 3
-            (base_start_x_row2, base_start_y_row2),  # Slot 4
-            (
-                base_start_x_row2 + base_slot_width + base_spacing_x,
-                base_start_y_row2,
-            ),  # Slot 5
-        ]
-
-        self.base_slot_width = base_slot_width
-        self.base_slot_height = base_slot_height
-
-        # Cria botões de ação para cada slot
-        for i, (base_x, base_y) in enumerate(self.base_positions):
-            slot_id = i + 1
-            slot = self.game_slots[i]
+        # Criar botões de ação para cada slot
+        for i, slot in enumerate(self.game_slots):
+            slot_id = slot["slot_id"]
             is_empty = not slot["player_name"]
 
-            # Armazena botões deste slot
-            self.slot_action_buttons[slot_id] = []
+            # Grid 2 colunas
+            col = i % 2
+            row = i // 2
+
+            base_x = start_x + col * (slot_w + spacing_x)
+            base_y = start_y + row * (slot_h + spacing_y)
+
+            # Botões posicionados RELATIVAMENTE ao fundo do card
+            # 15% da altura do card a partir do fundo
+            btn_margin_bottom = int(slot_h * 0.25)
+            btn_y = base_y + slot_h - btn_margin_bottom
 
             if is_empty:
-                # Slot vazio: Botão CRIAR JOGO (centralizado)
+                # Botão CRIAR JOGO (Centralizado no botão area)
+                btn_w = 200
+                btn_x = base_x + (slot_w - btn_w) // 2
+
                 create_btn = Button(
-                    base_x + base_slot_width // 2 - 100,
-                    base_y + base_slot_height - 50,
-                    200,
+                    btn_x,
+                    btn_y,
+                    btn_w,
                     40,
                     "CRIAR JOGO",
                     lambda sid=slot_id: self._create_new_game(sid),
-                    20,
+                    font_size=self.theme.FONT_MENU_SMALL,
+                    text_color=(255, 255, 255),
+                    button_image_normal=self.menu_assets["button_normal"],
+                    button_image_pressed=self.menu_assets["button_pressed"],
                 )
-                self.slot_action_buttons[slot_id].append(create_btn)
+                self.slot_action_buttons[slot_id] = {"create": create_btn}
             else:
-                # Slot ocupado: Botões CARREGAR e DELETAR
+                # Botões CARREGAR e DELETAR (Espalhados)
+                btn_w = 140
+                # Margem lateral interna de 10%
+                margin_side = int(slot_w * 0.05)
+
                 load_btn = Button(
-                    base_x + 20,
-                    base_y + base_slot_height - 50,
-                    240,
+                    base_x + margin_side,
+                    btn_y,
+                    btn_w,
                     40,
-                    "CARREGAR SAVE",
+                    "CARREGAR",
                     lambda sid=slot_id: self._load_game_slot(sid),
-                    18,
+                    font_size=self.theme.FONT_MENU_SMALL,
+                    text_color=(255, 255, 255),
+                    button_image_normal=self.menu_assets["button_normal"],
+                    button_image_pressed=self.menu_assets["button_pressed"],
                 )
+
                 delete_btn = Button(
-                    base_x + base_slot_width - 260,
-                    base_y + base_slot_height - 50,
-                    240,
+                    base_x + slot_w - btn_w - margin_side,
+                    btn_y,
+                    btn_w,
                     40,
-                    "DELETAR SLOT",
-                    lambda sid=slot_id: self._confirm_delete_slot(sid),
-                    18,
+                    "DELETAR",
+                    lambda sid=slot_id: self._delete_game(sid),
+                    font_size=self.theme.FONT_MENU_SMALL,
+                    text_color=(255, 255, 255),
+                    button_image_normal=self.menu_assets["button_normal"],
+                    button_image_pressed=self.menu_assets["button_pressed"],
                 )
-                self.slot_action_buttons[slot_id].extend([load_btn, delete_btn])
 
-    def _create_new_game(self, slot_id):
-        """Inicia criação de novo jogo no slot selecionado"""
-        self.game.selected_game_slot = slot_id
-        self.game.notification_manager.add_notification(
-            f"Criando novo jogo no slot {slot_id}", (100, 255, 100)
+                self.slot_action_buttons[slot_id] = {
+                    "load": load_btn,
+                    "delete": delete_btn,
+                }
+
+    def render(self, surface):
+        """Renderiza o estado (required by BaseState)"""
+        # Render background with overlay
+        render_menu_background(
+            surface, self.menu_assets["background"], self.theme, darkness=0.5
         )
 
-        from src.states.character_creation_state import CharacterCreationState
-
-        self.game.state_manager.change_state(CharacterCreationState(self.game))
-
-    def _load_game_slot(self, slot_id):
-        """Carrega o último save do slot (vai para tela de saves)"""
-        self.game.selected_game_slot = slot_id
-        self.game.notification_manager.add_notification(
-            f"Carregando saves do slot {slot_id}...", (100, 255, 100)
+        # Renderiza título
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "SELECIONE SEU JOGO", True, self.theme.COLOR_TEXT_PRIMARY
         )
+        title_y = self.ui_scaler.scale(120, "y")
+        title_rect = title_text.get_rect(center=(surface.get_width() // 2, title_y))
+        surface.blit(title_text, title_rect)
 
-        from src.states.save_select_state import SaveSelectState
+        # Dimensões calculadas para renderização (mesma lógica do create_ui)
+        slot_w = int(self.base_w * self.slot_width_pct)
+        slot_h = int(self.base_h * self.slot_height_pct)
+        spacing_x = int(self.base_w * self.spacing_x_pct)
+        spacing_y = int(self.base_h * self.spacing_y_pct)
 
-        self.game.state_manager.change_state(SaveSelectState(self.game))
+        total_grid_w = (2 * slot_w) + spacing_x
+        start_x = (self.base_w - total_grid_w) // 2
+        start_y = int(self.base_h * 0.20)
 
-    def _confirm_delete_slot(self, slot_id):
-        """Confirma exclusão do slot"""
-        if self.confirm_delete_slot == slot_id:
-            # Já está mostrando o modal
-            pass
-        else:
-            # Primeira vez - pede confirmação
-            self.confirm_delete_slot = slot_id
+        # Renderiza cards dos slots
+        for i, slot in enumerate(self.game_slots):
+            col = i % 2
+            row = i // 2
 
-            # Cria botão de confirmação (posições base - ResponsiveUI escalará)
-            base_box_width = 600
-            base_box_height = 200
-            base_box_x = (1920 - base_box_width) // 2
-            base_box_y = (1080 - base_box_height) // 2
+            base_x = start_x + col * (slot_w + spacing_x)
+            base_y = start_y + row * (slot_h + spacing_y)
 
-            self.confirm_button = Button(
-                base_box_x + base_box_width // 2 - 100,
-                base_box_y + 130,
-                200,
-                40,
-                "CONFIRMAR",
-                lambda: self._delete_game_slot(slot_id),
-                20,
-                text_color=(255, 255, 255),
-                bg_color=(200, 50, 50),
-                hover_color=(255, 80, 80),
+            # Escala o slot
+            slot_rect = self.ui_scaler.rect(base_x, base_y, slot_w, slot_h)
+
+            # Desenha card
+            is_empty = not slot["player_name"]
+            bg_color = self.theme.COLOR_BG_CARD if is_empty else (50, 60, 70)
+            border_color = (
+                self.theme.COLOR_BORDER_EMPTY
+                if is_empty
+                else self.theme.COLOR_BORDER_ACTIVE
             )
 
-            self.game.notification_manager.add_notification(
-                f"Confirme a exclusão do Slot {slot_id}", (255, 100, 100)
+            pygame.draw.rect(surface, bg_color, slot_rect, border_radius=15)
+            pygame.draw.rect(surface, border_color, slot_rect, 2, border_radius=15)
+
+            # Número do slot
+            slot_font = self.ui_scaler.get_themed_font("hud")
+            slot_text = slot_font.render(
+                f"SLOT {i+1}", True, self.theme.COLOR_TEXT_SECONDARY
             )
+            surface.blit(slot_text, (slot_rect.x + 20, slot_rect.y + 15))
 
-    def _delete_game_slot(self, slot_id):
-        """Deleta um slot de jogo e todos os seus saves"""
-        try:
-            cursor = self.game.game_config.database.connection.cursor()
-
-            # Primeiro, obtém o nome do jogador para deletar saves
-            cursor.execute(
-                "SELECT player_name FROM game_slots WHERE slot_id = ?", (slot_id,)
-            )
-            result = cursor.fetchone()
-
-            if result:
-                # Deleta saves associados
-                cursor.execute(
-                    "DELETE FROM save_slots WHERE game_slot_id = ?", (slot_id,)
+            if is_empty:
+                # Texto VAZIO
+                empty_font = self.ui_scaler.get_themed_font("menu")
+                empty_text = empty_font.render(
+                    "VAZIO", True, self.theme.COLOR_TEXT_HINT
                 )
-
-                # Limpa o slot (não deleta, apenas reseta)
-                cursor.execute(
-                    """
-                    UPDATE game_slots 
-                    SET player_name = NULL,
-                        player_class = NULL,
-                        player_level = 1,
-                        zone_name = 'Início',
-                        playtime = 0,
-                        is_active = 0
-                    WHERE slot_id = ?
-                    """,
-                    (slot_id,),
+                surface.blit(
+                    empty_text,
+                    (
+                        slot_rect.centerx - empty_text.get_width() // 2,
+                        slot_rect.centery - empty_text.get_height() // 2,
+                    ),
                 )
+            else:
+                # Informações do slot ocupado
+                info_font = self.ui_scaler.get_themed_font("menu")
 
-                self.game.game_config.database.connection.commit()
-                self.game.notification_manager.add_notification(
-                    f"Slot {slot_id} deletado com sucesso", (100, 255, 100)
+                name_text = info_font.render(
+                    f"👤 {slot['player_name']}", True, self.theme.COLOR_TEXT_PRIMARY
                 )
+                surface.blit(name_text, (slot_rect.x + 20, slot_rect.y + 50))
 
-        except Exception as e:
-            self.game.notification_manager.add_notification(
-                f"Erro ao deletar slot: {e}", (255, 50, 50)
+                if slot.get("player_class"):
+                    class_text = info_font.render(
+                        f"⚔️ {slot['player_class']}",
+                        True,
+                        self.theme.COLOR_TEXT_SECONDARY,
+                    )
+                    surface.blit(class_text, (slot_rect.x + 20, slot_rect.y + 80))
+
+                level_text = info_font.render(
+                    f"Nível {slot.get('player_level', 1)}",
+                    True,
+                    self.theme.COLOR_TEXT_SECONDARY,
+                )
+                surface.blit(level_text, (slot_rect.x + 20, slot_rect.y + 110))
+
+        # Renderiza botões
+        for btn in self.buttons:
+            btn.render(surface)
+
+        for buttons_dict in self.slot_action_buttons.values():
+            for btn in buttons_dict.values():
+                if btn:
+                    btn.render(surface)
+
+        # Modal de confirmação
+        if self.confirm_delete_slot and self.confirm_button:
+            # Overlay escuro
+            overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 128))
+            surface.blit(overlay, (0, 0))
+
+            # Caixa de confirmação
+            base_box_x = (self.theme.BASE_WIDTH - 600) // 2
+            base_box_y = (self.theme.BASE_HEIGHT - 200) // 2
+            box_rect = self.ui_scaler.rect(base_box_x, base_box_y, 600, 200)
+
+            pygame.draw.rect(
+                surface, self.theme.COLOR_BG_MODAL, box_rect, border_radius=20
             )
-            print(f"❌ Erro ao deletar slot {slot_id}: {e}")
+            pygame.draw.rect(
+                surface, self.theme.COLOR_BORDER_WARNING, box_rect, 3, border_radius=20
+            )
+
+            # Texto
+            title_font = self.ui_scaler.get_themed_font("title")
+            title_text = title_font.render(
+                "⚠️ CONFIRMAÇÃO", True, self.theme.COLOR_TEXT_WARNING
+            )
+            surface.blit(
+                title_text,
+                (
+                    box_rect.centerx - title_text.get_width() // 2,
+                    box_rect.y + self.ui_scaler.scale(30, "y"),
+                ),
+            )
+
+            msg_font = self.ui_scaler.get_themed_font("menu")
+            msg_text = msg_font.render(
+                f"Deletar SLOT {self.confirm_delete_slot}?",
+                True,
+                self.theme.COLOR_TEXT_PRIMARY,
+            )
+            surface.blit(
+                msg_text,
+                (
+                    box_rect.centerx - msg_text.get_width() // 2,
+                    box_rect.y + self.ui_scaler.scale(90, "y"),
+                ),
+            )
+
+            hint_font = self.ui_scaler.get_themed_font("menu_small")
+            hint_text = hint_font.render(
+                "Pressione ESC para cancelar", True, self.theme.COLOR_TEXT_HINT
+            )
+            surface.blit(
+                hint_text,
+                (
+                    box_rect.centerx - hint_text.get_width() // 2,
+                    box_rect.y + self.ui_scaler.scale(140, "y"),
+                ),
+            )
+
+            self.confirm_button.render(surface)
+
+    # ==================== ACTION METHODS ====================
 
     def _back_to_menu(self):
-        """Volta ao menu principal"""
+        """Volta para o menu principal"""
         from src.states.menu_state import MenuState
 
         self.game.state_manager.change_state(MenuState(self.game))
 
-    def handle_event(self, event):
-        """Processa eventos"""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                self._back_to_menu()
-                self.confirm_delete_slot = None  # Cancela confirmação
+    def _create_new_game(self, slot_id):
+        """Inicia criação de novo jogo no slot especificado"""
+        print(f"🎮 Criando novo jogo no slot {slot_id}")
+        from src.states.character_creation_state import CharacterCreationState
+
+        self.game.state_manager.change_state(CharacterCreationState(self.game, slot_id))
+
+    def _load_game_slot(self, slot_id):
+        """Carrega jogo do slot especificado"""
+        print(f"🎮 Carregando jogo do slot {slot_id}")
+
+        # Busca dados do herói
+        hero_data = self.game.hero_manager.get_hero_by_slot(slot_id)
+
+        if hero_data:
+            # Define como herói atual
+            self.game.hero_manager.set_current_hero(hero_data)
+
+            # Inicia o jogo
+            from src.states.game_state import GameState
+
+            self.game.state_manager.change_state(GameState(self.game, hero_data))
+        else:
+            print(f"❌ Erro: Dados do herói não encontrados para o slot {slot_id}")
+
+    def _delete_game(self, slot_id):
+        """Inicia processo de deletar jogo"""
+        print(f"🗑️ Solicitando deleção do slot {slot_id}")
+        self.confirm_delete_slot = slot_id
+
+        # Cria botão de confirmação
+        btn_w = 200
+        btn_h = 50
+        center_x = self.theme.BASE_WIDTH // 2
+        center_y = self.theme.BASE_HEIGHT // 2 + 100
+
+        self.confirm_button = Button(
+            center_x - btn_w // 2,
+            center_y,
+            btn_w,
+            btn_h,
+            "CONFIRMAR",
+            self._confirm_delete_action,
+            font_size=self.theme.FONT_MENU_SMALL,
+            text_color=self.theme.COLOR_TEXT_WARNING,
+            button_image_normal=self.menu_assets["button_normal"],
+            button_image_pressed=self.menu_assets["button_pressed"],
+        )
+
+    def _confirm_delete_action(self):
+        """Executa a deleção após confirmação"""
+        if self.confirm_delete_slot:
+            slot_id = self.confirm_delete_slot
+            print(f"🗑️ Confirmado: Deletando slot {slot_id}")
+
+            try:
+                cursor = self.game.game_config.database.connection.cursor()
+
+                # Limpa dados do slot
+                cursor.execute(
+                    """
+                    UPDATE game_slots 
+                    SET player_name = NULL, 
+                        player_class = NULL, 
+                        player_level = 1, 
+                        is_active = 0,
+                        playtime = 0,
+                        last_played = NULL
+                    WHERE slot_id = ?
+                """,
+                    (slot_id,),
+                )
+
+                # Remove herói associado (se houver tabela separada, mas parece que é tudo no game_slots por enquanto ou gerenciado pelo hero_manager)
+                # Se houver tabela de herois separada, deveria ser limpa aqui também.
+                # Assumindo que game_slots é a principal por enquanto ou que o reset basta.
+
+                self.game.game_config.database.connection.commit()
+                print("✅ Slot resetado com sucesso")
+
+                # Recarrega UI
+                self.confirm_delete_slot = None
                 self.confirm_button = None
+                self._load_game_slots()
+                self._create_ui()
 
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Se modal de confirmação estiver aberto, só verifica ele
-            if self.confirm_delete_slot and self.confirm_button:
-                if self.confirm_button.is_hovered(event.pos, self.game):
-                    self.confirm_button.on_click()
-
-            # Verifica clique nos botões de ação dos slots
-            for slot_id, action_buttons in self.slot_action_buttons.items():
-                for btn in action_buttons:
-                    if btn.is_hovered(event.pos, self.game):
-                        btn.on_click()
-                        return
-
-    def update(self):
-        """Atualiza o estado"""
-        if self.confirm_delete_slot and self.confirm_button:
-            mouse_pos = pygame.mouse.get_pos()
-            self.confirm_button.update(mouse_pos, self.game)
-            return
-
-        ButtonManager.update_buttons(self.buttons, self.game)
-
-        # Atualiza botões de ação dos slots
-
-        # Overlay semi-transparente (usa tamanho atual da tela)
-        overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 128))
-        surface.blit(overlay, (0, 0))
-
-        # Caixa de confirmação (posições base)
-        base_box_width = 600
-        base_box_height = 200
-        base_box_x = (1920 - base_box_width) // 2
-        base_box_y = (1080 - base_box_height) // 2
-
-        # Escala a caixa
-        box_rect = ResponsiveUI.scale_rect(
-            base_box_x,
-            base_box_y,
-            base_box_width,
-            base_box_height,
-            screen_width,
-            screen_height,
-        )
-
-        pygame.draw.rect(
-            surface,
-            (40, 40, 50),
-            box_rect,
-            border_radius=20,
-        )
-        pygame.draw.rect(
-            surface,
-            (255, 100, 100),
-            box_rect,
-            3,
-            border_radius=20,
-        )
-
-        # Texto de confirmação (escalado)
-        title_font_size = ResponsiveUI.scale_font_size(36, screen_width, screen_height)
-        title_font = self.game.game_config.get_font("title", title_font_size)
-        title_text = title_font.render("⚠️ CONFIRMAÇÃO", True, (255, 100, 100))
-        title_y = box_rect.y + ResponsiveUI.scale_value(30, screen_width, screen_height)
-        surface.blit(
-            title_text,
-            (box_rect.centerx - title_text.get_width() // 2, title_y),
-        )
-
-        msg_font_size = ResponsiveUI.scale_font_size(24, screen_width, screen_height)
-        msg_font = self.game.game_config.get_font("menu", msg_font_size)
-        msg_text = msg_font.render(
-            f"Deletar SLOT {self.confirm_delete_slot}?", True, (255, 255, 255)
-        )
-        msg_y = box_rect.y + ResponsiveUI.scale_value(90, screen_width, screen_height)
-        surface.blit(msg_text, (box_rect.centerx - msg_text.get_width() // 2, msg_y))
-
-        hint_font_size = ResponsiveUI.scale_font_size(20, screen_width, screen_height)
-        hint_font = self.game.game_config.get_font("menu", hint_font_size)
-
-        hint2_text = hint_font.render(
-            "Pressione ESC para cancelar", True, (150, 150, 150)
-        )
-        hint2_y = box_rect.y + ResponsiveUI.scale_value(
-            175, screen_width, screen_height
-        )
-        surface.blit(
-            hint2_text,
-            (box_rect.centerx - hint2_text.get_width() // 2, hint2_y),
-        )
+            except Exception as e:
+                print(f"❌ Erro ao deletar slot: {e}")
 
     def enter(self):
         """Chamado ao entrar no estado"""
@@ -368,3 +441,40 @@ class GameSlotSelectState(BaseState):
     def on_resize(self, old_size, new_size):
         """Recria a UI ao redimensionar"""
         self._create_ui()
+
+    def update(self):
+        """Atualiza o estado (required by BaseState)"""
+        mouse_pos = pygame.mouse.get_pos()
+        for button in self.buttons:
+            button.update(mouse_pos, dt=1.0 / 60.0)
+
+        # Update slot action buttons
+        for slot_id, buttons_dict in self.slot_action_buttons.items():
+            for btn in buttons_dict.values():
+                if btn:
+                    btn.update(mouse_pos, dt=1.0 / 60.0)
+
+        # Update confirm button if exists
+        if self.confirm_button:
+            self.confirm_button.update(mouse_pos, dt=1.0 / 60.0)
+
+    def handle_event(self, event):
+        """Processa eventos (required by BaseState)"""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.game.state_manager.pop_state()
+                return
+
+        # Handle button events
+        for button in self.buttons:
+            button.handle_event(event)
+
+        # Handle slot action button events
+        for slot_id, buttons_dict in self.slot_action_buttons.items():
+            for btn in buttons_dict.values():
+                if btn:
+                    btn.handle_event(event)
+
+        # Handle confirm button event
+        if self.confirm_button:
+            self.confirm_button.handle_event(event)

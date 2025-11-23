@@ -1,50 +1,57 @@
-# src/core/game.py - VERSÃO CORRIGIDA
-import pygame
 import sys
-from typing import Optional
-from config.display_config import DisplayConfig
-from config.game_config import GameConfig
+import pygame
+from src.core.game_config import GameConfig
 from src.core.state_manager import StateManager
+from src.ui.ui_scaler import UIScaler
 
 
 class Game:
     def __init__(self, debug_mode=False):
-        self.debug_mode = debug_mode
+        self.debug_mode = debug_mode  # Ativa modo debug baseado no argumento
 
-        # ✅ CORREÇÃO: Inicializa GameConfig SEM database primeiro
-        self.game_config = GameConfig(self)
+        # Inicializa configurações
+        self.game_config = GameConfig()
+        self.display_config = self.game_config.display_config
 
-        # ✅ CORREÇÃO: Agora inicializa o database
-        from src.database.database_manager import DatabaseManager
-
-        database_manager = DatabaseManager()
-
-        # ✅ INICIALIZAÇÃO DAS TABELAS DO JOGO
-        if self.debug_mode:
-            print("🦊 Inicializando tabelas do banco de dados...")
-        database_manager.initialize_game_tables(force_recreate_static=False)
-
-        # ✅ CORREÇÃO: Completa a inicialização do GameConfig
-        self.game_config.initialize_managers(database_manager)
-
-        # Agora inicializa DisplayConfig (que precisa do settings_manager)
-        self.display_config = DisplayConfig(self.game_config.settings_manager)
-
+        # Inicializa Pygame
         self._initialize_pygame()
-        self._initialize_audio()
-        self._create_window()
 
-        # Inicializa o UIScaler com a resolução atual
-        from src.ui.ui_scaler import UIScaler
-
+        # Inicializa UIScaler (CRÍTICO: Antes de qualquer UI)
         self.ui_scaler = UIScaler(self.display_config.current_resolution)
 
+        # Inicializa janela
+        self._create_window()
+
+        # Inicializa áudio
+        self._initialize_audio()
+
+        # Inicializa gerenciador de estados
         self.state_manager = StateManager(self)
 
-        # ✅ Inicializa gerenciador de notificações
+        # Inicializa gerenciador de notificações
         from src.ui.notification import NotificationManager
 
-        self.notification_manager = NotificationManager()
+        self.notification_manager = NotificationManager(self)
+
+        # Inicializa gerenciador de temas
+        from src.ui.theme_manager import ThemeManager
+
+        self.theme_manager = ThemeManager()
+
+        # Inicializa gerenciador de recursos (já inicializado no GameConfig)
+        self.resource_manager = self.game_config.resource_manager
+
+        # Inicializa gerenciador de heróis (já inicializado no GameConfig)
+        self.hero_manager = self.game_config.hero_manager
+
+        # Logs de debug
+        if self.debug_mode:
+            print(
+                f"🎨 UIScaler inicializado: {self.display_config.current_resolution} (Base: 1920x1080)"
+            )
+            print(
+                f"   Escala X: {self.ui_scaler.scale_x:.3f} | Escala Y: {self.ui_scaler.scale_y:.3f} | Uniforme: {self.ui_scaler.scale_uniform:.3f}"
+            )
 
         self.running = True
         self.clock = pygame.time.Clock()
@@ -138,7 +145,7 @@ class Game:
         self.state_manager.render(self.screen)
 
         # Renderiza notificações por cima de tudo
-        self.notification_manager.render(self.screen, self.game_config)
+        self.notification_manager.render(self.screen)
 
         pygame.display.flip()
 
@@ -195,6 +202,9 @@ class Game:
             self.state_manager.on_resize(
                 old_resolution, self.display_config.current_resolution
             )
+
+            # Atualiza o UIScaler
+            self.ui_scaler.update_resolution(self.display_config.current_resolution)
 
         except Exception as e:
             print(f"🔴 ERRO: Falha ao alterar modo de display: {e}")

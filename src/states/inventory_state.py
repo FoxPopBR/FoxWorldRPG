@@ -12,7 +12,7 @@ class InventoryState(BaseState):
     """Estado que exibe o inventário do jogador"""
 
     def __init__(self, game):
-        self.game = game
+        super().__init__(game)
         self.buttons = []
         self._create_ui()
 
@@ -21,7 +21,16 @@ class InventoryState(BaseState):
         self.buttons.clear()
 
         # Botão voltar
-        back_btn = Button(100, 980, 200, 60, "VOLTAR (ESC)", self._back_to_game, 24)
+        # Posição relativa: x=100, y=980 (em 1080p)
+        back_btn = Button(
+            100,
+            980,
+            200,
+            60,
+            "VOLTAR (ESC)",
+            self._back_to_game,
+            font_size=self.theme.FONT_MENU_MEDIUM,
+        )
         self.buttons.append(back_btn)
 
     def _back_to_game(self):
@@ -41,49 +50,84 @@ class InventoryState(BaseState):
 
     def update(self):
         """Atualiza o estado"""
-        ButtonManager.update_buttons(self.buttons, self.game)
+        mouse_pos = pygame.mouse.get_pos()
+        for btn in self.buttons:
+            btn.update(mouse_pos)
 
     def render(self, surface):
         """Renderiza a tela"""
-        screen_width, screen_height = surface.get_size()
+        surface.fill(self.theme.COLOR_BACKGROUND)
 
-        # Fundo
-        surface.fill(self.game.game_config.get_color("background"))
+        screen_width = surface.get_width()
+        screen_height = surface.get_height()
 
         # Título
-        title_font = self.game.game_config.get_font("title", 60)
-        title_text = title_font.render("INVENTÁRIO", True, (255, 255, 255))
-        surface.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, 40))
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "INVENTÁRIO", True, self.theme.COLOR_TEXT_PRIMARY
+        )
 
-        # Área do inventário (placeholder)
-        inventory_rect = pygame.Rect(200, 150, 1520, 750)
-        pygame.draw.rect(surface, (30, 30, 40), inventory_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), inventory_rect, 2, border_radius=20)
+        title_y = self.ui_scaler.scale(40, "y")
+        surface.blit(
+            title_text, (screen_width // 2 - title_text.get_width() // 2, title_y)
+        )
+
+        # Área do inventário
+        # Base: 200, 150, 1520, 750
+        inv_x = self.ui_scaler.scale(200, "x")
+        inv_y = self.ui_scaler.scale(150, "y")
+        inv_w = self.ui_scaler.scale(1520, "x")
+        inv_h = self.ui_scaler.scale(750, "y")
+
+        inventory_rect = pygame.Rect(inv_x, inv_y, inv_w, inv_h)
+        pygame.draw.rect(
+            surface, self.theme.COLOR_BG_CARD, inventory_rect, border_radius=20
+        )
+        pygame.draw.rect(
+            surface,
+            self.theme.COLOR_BORDER_DEFAULT,
+            inventory_rect,
+            2,
+            border_radius=20,
+        )
 
         # Texto placeholder
-        placeholder_font = self.game.game_config.get_font("menu", 28)
+        placeholder_font = self.ui_scaler.get_themed_font("menu")
         placeholder_text = placeholder_font.render(
-            "🎒 Sistema de Inventário em Desenvolvimento", True, (180, 180, 180)
+            "🎒 Sistema de Inventário em Desenvolvimento",
+            True,
+            self.theme.COLOR_TEXT_HINT,
         )
+
+        center_x = inventory_rect.centerx
+        center_y = inventory_rect.centery
+
         surface.blit(
             placeholder_text,
             (
-                screen_width // 2 - placeholder_text.get_width() // 2,
-                screen_height // 2 - 50,
+                center_x - placeholder_text.get_width() // 2,
+                center_y - 50,
             ),
         )
 
-        info_font = self.game.game_config.get_font("menu", 20)
+        info_font = self.ui_scaler.get_themed_font("menu_small")
         info_text = info_font.render(
-            "Pressione ESC ou F1 para voltar ao jogo", True, (150, 150, 150)
+            "Pressione ESC ou F1 para voltar ao jogo",
+            True,
+            self.theme.COLOR_TEXT_SECONDARY,
         )
         surface.blit(
             info_text,
             (
-                screen_width // 2 - info_text.get_width() // 2,
-                screen_height // 2 + 20,
+                center_x - info_text.get_width() // 2,
+                center_y + 20,
             ),
         )
 
         # Renderiza botões
-        ButtonManager.render_buttons(self.buttons, surface, self.game.game_config)
+        for btn in self.buttons:
+            btn.render(surface)
+
+    def on_resize(self, old_size, new_size):
+        """Recria UI ao redimensionar"""
+        self._create_ui()

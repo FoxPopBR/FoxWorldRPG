@@ -1,4 +1,4 @@
-# src/states/character_creation_state.py - VERSÃO REDESENHADA (1920x1080)
+# src/states/character_creation_state.py
 import pygame
 from src.states.base_state import BaseState
 from src.ui.button import Button
@@ -7,10 +7,11 @@ from src.entities.hero import HeroClass
 
 
 class CharacterCreationState(BaseState):
-    """Tela de criação de personagem - LAYOUT OTIMIZADO 1920x1080"""
+    """Tela de criação de personagem - LAYOUT RELATIVO (Porcentagem)"""
 
-    def __init__(self, game):
+    def __init__(self, game, slot_id=1):
         super().__init__(game)
+        self.slot_id = slot_id
 
         # Inicializa serviços
         from src.services.character_creation_service import CharacterCreationService
@@ -30,8 +31,8 @@ class CharacterCreationState(BaseState):
             "vitalidade": 5,
             "inteligencia": 5,
             "armadura": 5,
-            "energia": 5,  # Mantido para compatibilidade
-            "mana": 5,  # Novo nome
+            "energia": 5,
+            "mana": 5,
             "stamina": 5,
         }
 
@@ -46,6 +47,21 @@ class CharacterCreationState(BaseState):
         # Cache de imagens carregadas
         self.class_images = {}
         self._load_class_images()
+
+        # LAYOUT CONFIG (Porcentagens)
+        self.base_w = self.theme.BASE_WIDTH
+        self.base_h = self.theme.BASE_HEIGHT
+
+        # Colunas (Total ~94% largura + espaçamentos)
+        self.col1_pct = 0.22  # Visualização
+        self.col2_pct = 0.22  # Atributos
+        self.col3_pct = 0.26  # Habilidades
+        self.col4_pct = 0.24  # Stats
+        self.spacing_pct = 0.015  # 1.5% espaçamento
+
+        # Alturas
+        self.panel_top_pct = 0.12  # Começa em 12% do topo
+        self.panel_height_pct = 0.60  # 60% da altura da tela
 
         self.buttons = []
         self.class_buttons = []
@@ -66,7 +82,6 @@ class CharacterCreationState(BaseState):
                     class_key
                 )
 
-            # Seleciona a primeira classe por padrão
             if self.classes:
                 self.selected_class = list(self.classes.keys())[0]
 
@@ -80,8 +95,6 @@ class CharacterCreationState(BaseState):
         """Carrega as imagens das classes"""
         for class_key in self.classes.keys():
             try:
-                # Usa o ResourceManager para carregar a imagem da classe (ícone)
-                # O tipo "class" refere-se ao ícone da classe (ex: barbaro_class.png)
                 image = self.game.game_config.resource_manager.get_hero_image(
                     class_key, "class"
                 )
@@ -89,9 +102,7 @@ class CharacterCreationState(BaseState):
                 if image:
                     image = pygame.transform.scale(image, (100, 100))
                     self.class_images[class_key] = image
-                    print(f"✅ Imagem carregada: {class_key}")
                 else:
-                    # Placeholder gerado pelo ResourceManager
                     self.class_images[class_key] = (
                         self.game.game_config.resource_manager._create_placeholder(
                             100, 100, (100, 100, 100), text=class_key[:3]
@@ -102,59 +113,86 @@ class CharacterCreationState(BaseState):
                 self.class_images[class_key] = pygame.Surface((100, 100))
 
     def _create_ui(self):
-        """Cria interface com layout otimizado para 1920x1080"""
+        """Cria interface com layout relativo"""
         self.buttons.clear()
         self.class_buttons.clear()
         self.attribute_controls.clear()
 
-        # Botões de ação (Rodapé)
-        cancel_btn = Button(100, 980, 200, 60, "CANCELAR", self._cancel_creation, 24)
+        # Botões de ação (Rodapé - 92% da altura)
+        button_y = int(self.base_h * 0.92)
+        btn_width = 200
+        btn_height = 50
+
+        cancel_btn = Button(
+            int(self.base_w * 0.05),  # 5% da esquerda
+            button_y,
+            btn_width,
+            btn_height,
+            "CANCELAR",
+            self._cancel_creation,
+            font_size=self.theme.FONT_MENU_MEDIUM,
+        )
+
         confirm_btn = Button(
-            1620, 980, 200, 60, "CONFIRMAR", self._confirm_character, 24
+            int(self.base_w * 0.95) - btn_width,  # 5% da direita
+            button_y,
+            btn_width,
+            btn_height,
+            "CONFIRMAR",
+            self._confirm_character,
+            font_size=self.theme.FONT_MENU_MEDIUM,
         )
         self.buttons.extend([cancel_btn, confirm_btn])
 
-        # Botões das classes (Centralizado abaixo dos painéis)
         self._create_class_buttons()
-
-        # Controles de atributos
         self._create_attribute_controls()
 
     def _create_class_buttons(self):
-        """Cria botões de classe centralizados"""
+        """Cria botões de classe centralizados abaixo dos painéis"""
         total_classes = len(self.classes)
-        button_width = 180
-        button_height = 160
+
+        # Área dos botões de classe (entre painéis e botões de ação)
+        # Começa logo após o fim dos painéis (12% + 60% = 72%)
+        start_y_pct = 0.74
+
+        # Dimensões relativas
+        btn_w = 140
+        btn_h = 140
         spacing = 20
-        total_width = (button_width * total_classes) + (spacing * (total_classes - 1))
-        start_x = (1920 - total_width) // 2
-        start_y = 820  # Posicionado mais abaixo
+
+        total_width = (btn_w * total_classes) + (spacing * (total_classes - 1))
+        start_x = (self.base_w - total_width) // 2
+        start_y = int(self.base_h * start_y_pct)
 
         for i, (class_key, class_data) in enumerate(self.classes.items()):
-            x_pos = start_x + i * (button_width + spacing)
-            y_pos = start_y
+            x_pos = start_x + i * (btn_w + spacing)
 
             class_btn = Button(
                 x_pos,
-                y_pos,
-                button_width,
-                button_height,
+                start_y,
+                btn_w,
+                btn_h,
                 "",
                 lambda c=class_key: self._select_class(c),
-                20,
+                font_size=self.theme.FONT_MENU_SMALL,
             )
             self.class_buttons.append(class_btn)
 
     def _create_attribute_controls(self):
-        """Cria controles de atributos no painel central"""
-        # Novo layout: 4 painéis sem margem
-        # Painel Atributos começa em X=440
-        panel_x = 440
-        panel_y = 120
+        """Cria controles de atributos no painel 2"""
+        # Calcula posição do painel 2
+        spacing = int(self.base_w * self.spacing_pct)
+        col1_w = int(self.base_w * self.col1_pct)
+        panel_x = (
+            int(self.base_w * 0.02) + col1_w + spacing
+        )  # 2% margem + col1 + spacing
+        panel_y = int(self.base_h * self.panel_top_pct)
+        panel_w = int(self.base_w * self.col2_pct)
 
-        # Coluna única centralizada no painel (abaixo da caixa de pontos)
-        start_y = panel_y + 160
-        spacing_y = 70  # Reduzido de 75 para 70
+        # Área interna para controles
+        # Começa após título e pontos (aprox 25% da altura do painel)
+        start_y = panel_y + int(self.base_h * 0.18)
+        spacing_y = int(self.base_h * 0.055)  # 5.5% da altura da tela por linha
 
         attributes = [
             ("forca", "FORÇA"),
@@ -162,53 +200,55 @@ class CharacterCreationState(BaseState):
             ("vitalidade", "VITALIDADE"),
             ("inteligencia", "INTELIGÊNCIA"),
             ("armadura", "ARMADURA"),
-            ("mana", "MANA"),  # Renomeado de energia
+            ("mana", "MANA"),
             ("stamina", "STAMINA"),
         ]
+
+        btn_size = 30
 
         for i, (attr_key, attr_name) in enumerate(attributes):
             y_pos = start_y + i * spacing_y
 
-            # Botão Menos (menor: 35x35)
+            # Botões alinhados à direita do painel
+            # Menos
+            minus_x = panel_x + panel_w - (btn_size * 2) - 60
             minus_btn = Button(
-                panel_x + 230,
+                minus_x,
                 y_pos,
-                35,  # Reduzido de 45
-                35,  # Reduzido de 40
+                btn_size,
+                btn_size,
                 "-",
                 lambda a=attr_key: self._adjust_attribute(a, -1),
-                22,  # Fonte menor
+                font_size=self.theme.FONT_HUD_MEDIUM,
             )
 
-            # Botão Mais (menor: 35x35)
+            # Mais
+            plus_x = panel_x + panel_w - btn_size - 20
             plus_btn = Button(
-                panel_x + 315,  # Ajustado para botões menores
+                plus_x,
                 y_pos,
-                35,
-                35,
+                btn_size,
+                btn_size,
                 "+",
                 lambda a=attr_key: self._adjust_attribute(a, 1),
-                22,
+                font_size=self.theme.FONT_HUD_MEDIUM,
             )
 
             self.attribute_controls.append(
                 {
                     "key": attr_key,
                     "name": attr_name,
-                    "y": y_pos,
+                    "y": y_pos,  # Y absoluto calculado
                     "minus_btn": minus_btn,
                     "plus_btn": plus_btn,
                 }
             )
 
     def _select_class(self, class_key):
-        """Seleciona uma classe"""
         self.selected_class = class_key
 
     def _adjust_attribute(self, attribute, change):
-        """Ajusta atributo se houver pontos disponíveis"""
         current_value = self.base_attributes[attribute]
-
         if change > 0 and self.available_points > 0 and current_value < 15:
             self.base_attributes[attribute] += change
             self.available_points -= change
@@ -217,16 +257,14 @@ class CharacterCreationState(BaseState):
             self.available_points -= change
 
     def _cancel_creation(self):
-        """Cancela a criação e volta ao menu"""
         from src.states.menu_state import MenuState
 
         self.game.state_manager.change_state(MenuState(self.game))
 
     def _confirm_character(self):
-        """Confirma a criação do personagem"""
         if not self.player_name.strip():
             self.game.notification_manager.add_notification(
-                "Digite um nome para o personagem!", (255, 100, 100)
+                "Digite um nome!", (255, 100, 100)
             )
             self.name_input_active = True
             return
@@ -237,9 +275,8 @@ class CharacterCreationState(BaseState):
             )
             return
 
-        # Verifica se nome já existe no slot atual
         try:
-            game_slot_id = getattr(self.game, "selected_game_slot", 1)
+            game_slot_id = self.slot_id
             cursor = self.game.game_config.database.connection.cursor()
             cursor.execute(
                 "SELECT COUNT(*) FROM save_slots WHERE game_slot_id = ? AND hero_name = ?",
@@ -247,33 +284,18 @@ class CharacterCreationState(BaseState):
             )
             if cursor.fetchone()[0] > 0:
                 self.game.notification_manager.add_notification(
-                    f"O nome '{self.player_name}' já existe neste slot!",
-                    (255, 100, 100),
+                    f"Nome '{self.player_name}' já existe!", (255, 100, 100)
                 )
                 return
 
-            # Converte string para enum HeroClass
             hero_class = HeroClass(self.selected_class)
-
-            # Usa o Hero Manager para criar e salvar
             hero = self.game.game_config.hero_manager.create_hero(
                 self.player_name, hero_class, self.base_attributes
             )
 
             if hero:
-                print(
-                    f"🎮 Personagem criado e salvo na tabela players: {self.player_name} - {self.selected_class}"
-                )
-
-                # Atualiza o slot de jogo com as informações do personagem
                 self._update_game_slot(game_slot_id, hero)
-
-                # Cria os 3 slots de save para este slot de jogo
                 self._create_save_slots(game_slot_id, hero)
-
-                # Cria o primeiro auto-save
-                self._create_auto_save(game_slot_id, hero)
-
                 from src.states.game_state import GameState
 
                 self.game.state_manager.change_state(GameState(self.game))
@@ -288,18 +310,66 @@ class CharacterCreationState(BaseState):
                 "Erro ao criar personagem!", (255, 100, 100)
             )
 
+    def _update_game_slot(self, slot_id, hero):
+        cursor = self.game.game_config.database.connection.cursor()
+        cursor.execute(
+            """UPDATE game_slots SET player_name = ?, player_class = ?, player_level = ?, 
+               zone_name = ?, playtime = 0, is_active = 1 WHERE slot_id = ?""",
+            (hero.name, hero.hero_class.value, hero.level, "Início", slot_id),
+        )
+        self.game.game_config.database.connection.commit()
+
+    def _create_save_slots(self, game_slot_id, hero):
+        cursor = self.game.game_config.database.connection.cursor()
+        # Cria os 3 slots de save com IDs 1, 2, 3
+        # Cria os 3 slots de save com IDs 1, 2, 3
+        for save_id in [1, 2, 3]:
+            slot_type = "auto" if save_id == 1 else "manual"
+            save_title = "Auto Save" if save_id == 1 else f"Save Manual {save_id - 1}"
+
+            # Apenas o slot 1 (Auto Save) recebe dados do herói na criação
+            if save_id == 1:
+                cursor.execute(
+                    """INSERT OR REPLACE INTO save_slots 
+                       (game_slot_id, save_slot_id, slot_type, save_type, hero_name, hero_level, hero_class, zone_name, save_title)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        game_slot_id,
+                        save_id,
+                        slot_type,
+                        slot_type,
+                        hero.name,
+                        hero.level,
+                        hero.hero_class.value,
+                        "Início",
+                        save_title,
+                    ),
+                )
+            else:
+                # Slots 2 e 3 são criados vazios
+                cursor.execute(
+                    """INSERT OR REPLACE INTO save_slots 
+                       (game_slot_id, save_slot_id, slot_type, save_type, save_title)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    (
+                        game_slot_id,
+                        save_id,
+                        slot_type,
+                        slot_type,
+                        save_title,
+                    ),
+                )
+        self.game.game_config.database.connection.commit()
+
     def _calculate_final_attributes(self):
-        """Calcula atributos usando o serviço"""
         if not self.selected_class or self.selected_class not in self.classes:
             return self.base_attributes.copy()
-
         class_data = self.classes[self.selected_class]
         return self.creation_service.calculate_derived_attributes(
             self.base_attributes, class_data
         )
 
     def handle_event(self, event):
-        """Processa eventos"""
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self._cancel_creation()
@@ -321,670 +391,351 @@ class CharacterCreationState(BaseState):
                     self.player_name += event.unicode
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Input de nome posicionado no painel da esquerda
-            # Coordenadas devem bater com _render_name_input:
-            # panel_rect.x = 20, input_y = panel_rect.bottom - 90 = 120 + 650 - 90 = 680
-            # input_rect = (20 + 30, 680, 340, 50) -> (50, 680, 340, 50)
-            name_input_rect = pygame.Rect(50, 680, 340, 50)
+            # Input de nome (Recalcular rect para hit test)
+            col1_w = int(self.base_w * self.col1_pct)
+            panel_x = int(self.base_w * 0.02)
+            panel_y = int(self.base_h * self.panel_top_pct)
+            panel_h = int(self.base_h * self.panel_height_pct)
 
-            if name_input_rect.collidepoint(event.pos):
+            input_y = panel_y + panel_h - int(self.base_h * 0.08)
+            input_rect = self.ui_scaler.rect(panel_x + 20, input_y, col1_w - 40, 40)
+
+            if input_rect.collidepoint(event.pos):
                 self.name_input_active = True
             else:
                 self.name_input_active = False
 
-            all_buttons = []
-            all_buttons.extend(self.buttons)
-            all_buttons.extend(self.class_buttons)
-
+            all_buttons = self.buttons + self.class_buttons
             for control in self.attribute_controls:
                 all_buttons.append(control["minus_btn"])
                 all_buttons.append(control["plus_btn"])
 
-            ButtonManager.handle_button_click(all_buttons, event, self.game)
+            for btn in all_buttons:
+                if btn.handle_event(event):
+                    return
 
             if event.button == 4:
                 self._scroll_up()
             elif event.button == 5:
                 self._scroll_down()
 
+    def _scroll_up(self):
+        self.stats_scroll_offset = max(0, self.stats_scroll_offset - 1)
+
+    def _scroll_down(self):
+        self.stats_scroll_offset = min(10, self.stats_scroll_offset + 1)
+
     def update(self):
-        """Atualiza o estado"""
+        mouse_pos = pygame.mouse.get_pos()
         all_buttons = self.buttons + self.class_buttons
         for control in self.attribute_controls:
             all_buttons.append(control["minus_btn"])
             all_buttons.append(control["plus_btn"])
-
-        ButtonManager.update_buttons(all_buttons, self.game)
+        for btn in all_buttons:
+            btn.update(mouse_pos)
 
     def render(self, surface):
-        """Renderiza a tela"""
-        screen_width, screen_height = surface.get_size()
+        surface.fill(self.theme.COLOR_BACKGROUND)
 
-        # Fundo
-        surface.fill(self.game.game_config.get_color("background"))
-
-        # Título Principal
-        title_font = self.game.game_config.get_font("title", 60)
-        title_text = title_font.render("CRIAÇÃO DE PERSONAGEM", True, (255, 255, 255))
-        # Sombra do título
-        title_shadow = title_font.render("CRIAÇÃO DE PERSONAGEM", True, (0, 0, 0))
-        surface.blit(
-            title_shadow, (screen_width // 2 - title_text.get_width() // 2 + 2, 42)
+        # Título
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "CRIAÇÃO DE PERSONAGEM", True, self.theme.COLOR_TEXT_PRIMARY
         )
-        surface.blit(title_text, (screen_width // 2 - title_text.get_width() // 2, 40))
+        title_y = self.ui_scaler.scale(40, "y")
+        surface.blit(
+            title_text,
+            (surface.get_width() // 2 - title_text.get_width() // 2, title_y),
+        )
 
-        # Renderiza os 4 painéis principais
-        self._render_visualization_panel(surface)
-        self._render_attributes_panel(surface)
-        self._render_class_description_panel(surface)  # Novo painel
-        self._render_stats_panel(surface)
+        # Cálculos de Layout
+        margin_x = int(self.base_w * 0.02)
+        spacing = int(self.base_w * self.spacing_pct)
+        panel_y = int(self.base_h * self.panel_top_pct)
+        panel_h = int(self.base_h * self.panel_height_pct)
 
-        # Renderiza seleção de classe
-        self._render_class_selection_label(surface)
+        # Coluna 1
+        col1_x = margin_x
+        col1_w = int(self.base_w * self.col1_pct)
+        self._render_panel(surface, col1_x, panel_y, col1_w, panel_h, "VISUALIZAÇÃO")
+        self._render_visualization_content(surface, col1_x, panel_y, col1_w, panel_h)
 
-        # Botões (renderiza ANTES das imagens para ficarem por baixo)
-        ButtonManager.render_buttons(self.buttons, surface, self.game.game_config)
+        # Coluna 2
+        col2_x = col1_x + col1_w + spacing
+        col2_w = int(self.base_w * self.col2_pct)
+        self._render_panel(surface, col2_x, panel_y, col2_w, panel_h, "ATRIBUTOS")
+        self._render_attributes_content(surface, col2_x, panel_y, col2_w, panel_h)
 
-        # Renderiza botões de classe com imagens (POR CIMA dos botões renderizados)
+        # Coluna 3
+        col3_x = col2_x + col2_w + spacing
+        col3_w = int(self.base_w * self.col3_pct)
+        self._render_panel(surface, col3_x, panel_y, col3_w, panel_h, "HABILIDADES")
+        self._render_skills_content(surface, col3_x, panel_y, col3_w, panel_h)
+
+        # Coluna 4
+        col4_x = col3_x + col3_w + spacing
+        col4_w = int(self.base_w * self.col4_pct)
+        self._render_panel(surface, col4_x, panel_y, col4_w, panel_h, "ESTATÍSTICAS")
+        self._render_stats_content(surface, col4_x, panel_y, col4_w, panel_h)
+
+        # Botões
+        for btn in self.buttons:
+            btn.render(surface)
         self._render_class_buttons(surface)
 
-        # Renderiza botões de atributos
+        # Controles de atributos
         for control in self.attribute_controls:
-            control["minus_btn"].render(surface, self.game.game_config)
-            control["plus_btn"].render(surface, self.game.game_config)
+            control["minus_btn"].render(surface)
+            control["plus_btn"].render(surface)
 
-    def _render_visualization_panel(self, surface):
-        """Renderiza o painel de visualização (Esquerda)"""
-        # Novo layout: 4 painéis sem margens
-        panel_rect = pygame.Rect(20, 120, 400, 650)  # Reduzido e without margin
+    def _render_panel(self, surface, x, y, w, h, title):
+        """Renderiza o fundo e título de um painel"""
+        rect = self.ui_scaler.rect(x, y, w, h)
+        pygame.draw.rect(surface, (30, 30, 40), rect, border_radius=20)
+        pygame.draw.rect(surface, (60, 60, 80), rect, 2, border_radius=20)
 
-        # Fundo do painel
-        pygame.draw.rect(surface, (30, 30, 40), panel_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), panel_rect, 2, border_radius=20)
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_surf = title_font.render(title, True, (200, 200, 220))
 
-        # Título do Painel
-        title_font = self.game.game_config.get_font("title", 32)
-        title_text = title_font.render("VISUALIZAÇÃO", True, (200, 200, 220))
+        # Título centralizado no topo do painel (offset relativo)
+        title_y_offset = self.ui_scaler.scale(20, "y")
         surface.blit(
-            title_text,
-            (panel_rect.centerx - title_text.get_width() // 2, panel_rect.y + 20),
+            title_surf,
+            (rect.centerx - title_surf.get_width() // 2, rect.y + title_y_offset),
         )
+
+    def _render_visualization_content(self, surface, x, y, w, h):
+        """Conteúdo do painel 1"""
+        rect = self.ui_scaler.rect(x, y, w, h)
+
         if not self.selected_class or self.selected_class not in self.classes:
             return
-
         class_data = self.classes[self.selected_class]
-
-        # Área da Imagem
-        image_bg_rect = pygame.Rect(0, 0, 350, 350)
-        image_bg_rect.center = (panel_rect.centerx, panel_rect.y + 200)
-        pygame.draw.rect(surface, (20, 20, 25), image_bg_rect, border_radius=15)
-        pygame.draw.rect(
-            surface, class_data["color"], image_bg_rect, 3, border_radius=15
-        )
 
         # Imagem
+        img_size = int(min(rect.width, rect.height) * 0.55)
+        img_rect = pygame.Rect(0, 0, img_size, img_size)
+        img_rect.centerx = rect.centerx
+        img_rect.y = rect.y + int(rect.height * 0.15)
+
+        pygame.draw.rect(surface, (20, 20, 25), img_rect, border_radius=15)
+        pygame.draw.rect(surface, class_data["color"], img_rect, 3, border_radius=15)
+
         if self.selected_class in self.class_images:
-            class_image = self.class_images[self.selected_class]
-            # Escala a imagem para preencher melhor o box (330x330)
-            scaled_image = pygame.transform.scale(class_image, (330, 330))
-            image_x = image_bg_rect.centerx - scaled_image.get_width() // 2
-            image_y = image_bg_rect.centery - scaled_image.get_height() // 2
-            surface.blit(scaled_image, (image_x, image_y))
+            img = pygame.transform.scale(
+                self.class_images[self.selected_class], (img_size - 10, img_size - 10)
+            )
+            surface.blit(img, (img_rect.x + 5, img_rect.y + 5))
 
-        # Nome da Classe (Abaixo da imagem)
-        class_font = self.game.game_config.get_font("title", 40)
-        class_text = class_font.render(class_data["name"], True, class_data["color"])
+        # Nome da Classe
+        name_font = self.ui_scaler.get_themed_font("title")
+        name_surf = name_font.render(class_data["name"], True, class_data["color"])
         surface.blit(
-            class_text,
+            name_surf, (rect.centerx - name_surf.get_width() // 2, img_rect.bottom + 15)
+        )
+
+        # Input de Nome
+        input_h = 40
+        input_y = rect.bottom - int(rect.height * 0.15)
+        input_rect = pygame.Rect(rect.x + 20, input_y, rect.width - 40, input_h)
+
+        label_font = self.ui_scaler.get_themed_font("menu_small")
+        label_surf = label_font.render("NOME DO PERSONAGEM:", True, (200, 200, 200))
+        surface.blit(label_surf, (input_rect.x, input_rect.y - 25))
+
+        border_col = (100, 200, 255) if self.name_input_active else (80, 80, 100)
+        pygame.draw.rect(surface, (20, 20, 25), input_rect, border_radius=8)
+        pygame.draw.rect(surface, border_col, input_rect, 2, border_radius=8)
+
+        txt = self.player_name if self.player_name else "Digite o nome..."
+        col = (255, 255, 255) if self.player_name else (100, 100, 100)
+        txt_surf = label_font.render(txt, True, col)
+        surface.blit(
+            txt_surf,
+            (input_rect.x + 10, input_rect.centery - txt_surf.get_height() // 2),
+        )
+
+    def _render_attributes_content(self, surface, x, y, w, h):
+        """Conteúdo do painel 2"""
+        rect = self.ui_scaler.rect(x, y, w, h)
+
+        # Pontos Disponíveis
+        pts_y = rect.y + int(rect.height * 0.10)
+        pts_bg_rect = pygame.Rect(rect.x + 20, pts_y, rect.width - 40, 40)
+
+        pygame.draw.rect(surface, (20, 20, 30), pts_bg_rect, border_radius=8)
+        pygame.draw.rect(surface, (60, 60, 80), pts_bg_rect, 2, border_radius=8)
+
+        pts_font = self.ui_scaler.get_themed_font("menu")
+        col = (100, 255, 100) if self.available_points > 0 else (150, 150, 150)
+        pts_surf = pts_font.render(f"PONTOS: {self.available_points}", True, col)
+        surface.blit(
+            pts_surf,
             (
-                panel_rect.centerx - class_text.get_width() // 2,
-                image_bg_rect.bottom + 20,
+                pts_bg_rect.centerx - pts_surf.get_width() // 2,
+                pts_bg_rect.centery - pts_surf.get_height() // 2,
             ),
         )
 
-        # Input de Nome (Integrado ao painel)
-        self._render_name_input(surface, panel_rect)
-
-    def _render_name_input(self, surface, panel_rect):
-        """Renderiza o campo de nome dentro do painel de visualização"""
-        input_y = panel_rect.bottom - 90
-
-        name_font = self.game.game_config.get_font("menu", 24)
-        name_title = name_font.render("NOME DO PERSONAGEM:", True, (255, 255, 255))
-        surface.blit(name_title, (panel_rect.x + 30, input_y - 35))
-
-        input_rect = pygame.Rect(
-            panel_rect.x + 30, input_y, 340, 50
-        )  # Reduzido para caber
-        border_color = (100, 200, 255) if self.name_input_active else (80, 80, 100)
-        bg_color = (20, 20, 25)
-
-        pygame.draw.rect(surface, bg_color, input_rect, border_radius=10)
-        pygame.draw.rect(surface, border_color, input_rect, 2, border_radius=10)
-
-        display_text = self.player_name
-        text_color = (255, 255, 255)
-
-        if not self.player_name and not self.name_input_active:
-            display_text = "Digite o nome..."
-            text_color = (100, 100, 100)
-
-        text_surface = name_font.render(display_text, True, text_color)
-        surface.blit(
-            text_surface,
-            (input_rect.x + 15, input_rect.centery - text_surface.get_height() // 2),
-        )
-
-        if self.name_input_active and pygame.time.get_ticks() % 1000 < 500:
-            cursor_x = (
-                input_rect.x
-                + 15
-                + (name_font.size(self.player_name)[0] if self.player_name else 0)
-            )
-            pygame.draw.line(
-                surface,
-                (255, 255, 255),
-                (cursor_x, input_rect.y + 10),
-                (cursor_x, input_rect.y + 40),
-                2,
-            )
-
-    def _render_attributes_panel(self, surface):
-        """Renderiza o painel de atributos (2ª coluna)"""
-        # Novo layout: X=440, largura=400
-        panel_rect = pygame.Rect(440, 120, 400, 650)
-
-        pygame.draw.rect(surface, (30, 30, 40), panel_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), panel_rect, 2, border_radius=20)
-
-        title_font = self.game.game_config.get_font("title", 32)
-        title_text = title_font.render("ATRIBUTOS", True, (200, 200, 220))
-        surface.blit(
-            title_text,
-            (panel_rect.centerx - title_text.get_width() // 2, panel_rect.y + 20),
-        )
-
-        # Pontos disponíveis (Destaque MELHORADO)
-        points_bg_rect = pygame.Rect(
-            panel_rect.x + 40, panel_rect.y + 70, panel_rect.width - 80, 55
-        )
-        pygame.draw.rect(surface, (20, 20, 25), points_bg_rect, border_radius=10)
-        # Borda destacada quando há pontos
-        border_color = (100, 255, 100) if self.available_points > 0 else (60, 60, 80)
-        pygame.draw.rect(surface, border_color, points_bg_rect, 2, border_radius=10)
-
-        points_font = self.game.game_config.get_font(
-            "title", 32
-        )  # Aumentado de 28 para 32
-        points_color = (100, 255, 100) if self.available_points > 0 else (150, 150, 150)
-        points_text = points_font.render(
-            f"PONTOS DISPONÍVEIS: {self.available_points}", True, points_color
-        )
-        surface.blit(
-            points_text,
-            (
-                points_bg_rect.centerx - points_text.get_width() // 2,
-                points_bg_rect.centery - points_text.get_height() // 2,
-            ),
-        )
-
-        # Renderiza os controles
+        # Renderiza labels e valores dos controles
         for control in self.attribute_controls:
-            self._render_attribute_control(surface, control, panel_rect.x)
+            # Y já está escalado no create_ui, mas precisamos renderizar relativo ao painel se quisermos ser puristas
+            # Mas como calculamos absoluto lá, usamos absoluto aqui
+            y_pos = self.ui_scaler.scale(control["y"], "y")
 
-    def _render_attribute_control(self, surface, control, panel_x):
-        """Renderiza uma linha de controle de atributo"""
-        attr_value = self.base_attributes[control["key"]]
-        y_pos = control["y"]
+            # Nome
+            name_font = self.ui_scaler.get_themed_font("menu_small")
+            name_surf = name_font.render(control["name"], True, (220, 220, 220))
+            surface.blit(name_surf, (rect.x + 20, y_pos + 8))
 
-        # Nome do atributo (melhor centralizado)
-        name_font = self.game.game_config.get_font("menu", 22)
-        name_surface = name_font.render(control["name"], True, (220, 220, 220))
-        # Centralizado melhor
-        surface.blit(name_surface, (panel_x + 55, y_pos + 5))
+            # Valor
+            val = self.base_attributes[control["key"]]
+            val_bg_rect = pygame.Rect(0, 0, 50, 30)
+            # Posiciona entre os botões (calculado visualmente)
+            val_bg_rect.centerx = control["minus_btn"].rect.right + 30  # Aproximado
+            # Melhor: usar a posição dos botões
+            btn_right = control["minus_btn"]._get_scaled_rect().right
+            btn_left = control["plus_btn"]._get_scaled_rect().left
+            val_bg_rect.centerx = (btn_right + btn_left) // 2
+            val_bg_rect.centery = control["minus_btn"]._get_scaled_rect().centery
 
-        # Valor (Centralizado entre botões)
-        # Botões estão em x+230 (fim ~265) e x+315 (início). Centro aprox x+272
-        value_bg_rect = pygame.Rect(panel_x + 270, y_pos, 55, 35)  # Menor
-        pygame.draw.rect(surface, (20, 20, 25), value_bg_rect, border_radius=8)
-        pygame.draw.rect(surface, (60, 60, 80), value_bg_rect, 1, border_radius=8)
+            pygame.draw.rect(surface, (20, 20, 25), val_bg_rect, border_radius=5)
 
-        value_font = self.game.game_config.get_font("title", 24)  # Menor
-        value_color = (
-            (255, 255, 0) if attr_value > 5 else (255, 255, 255)
-        )  # Destaque se modificado
-        value_surface = value_font.render(str(attr_value), True, value_color)
-        surface.blit(
-            value_surface,
-            (
-                value_bg_rect.centerx - value_surface.get_width() // 2,
-                value_bg_rect.centery - value_surface.get_height() // 2,
-            ),
-        )
-
-    def _render_class_description_panel(self, surface):
-        """Renderiza o painel de descrição da classe (3ª coluna)"""
-        # Novo layout: X=860, largura=400
-        panel_rect = pygame.Rect(860, 120, 460, 650)
-
-        pygame.draw.rect(surface, (30, 30, 40), panel_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), panel_rect, 2, border_radius=20)
-
-        title_font = self.game.game_config.get_font("title", 32)
-        title_text = title_font.render("HABILIDADES", True, (200, 200, 220))
-        surface.blit(
-            title_text,
-            (panel_rect.centerx - title_text.get_width() // 2, panel_rect.y + 20),
-        )
-
-        if not self.selected_class or self.selected_class not in self.classes:
-            # Mensagem placeholder
-            placeholder_font = self.game.game_config.get_font("menu", 22)
-            placeholder_text = placeholder_font.render(
-                "Selecione uma classe para ver detalhes", True, (150, 150, 150)
-            )
+            val_col = (255, 255, 0) if val > 5 else (255, 255, 255)
+            val_surf = name_font.render(str(val), True, val_col)
             surface.blit(
-                placeholder_text,
+                val_surf,
                 (
-                    panel_rect.centerx - placeholder_text.get_width() // 2,
-                    panel_rect.centery,
+                    val_bg_rect.centerx - val_surf.get_width() // 2,
+                    val_bg_rect.centery - val_surf.get_height() // 2,
                 ),
             )
+
+    def _render_skills_content(self, surface, x, y, w, h):
+        """Conteúdo do painel 3"""
+        rect = self.ui_scaler.rect(x, y, w, h)
+        if not self.selected_class:
             return
 
-        # Área de conteúdo
-        content_y = panel_rect.y + 70
-        content_font = self.game.game_config.get_font("menu", 22)  # Fonte maior
-
-        # Pega dados da classe selecionada
         class_data = self.classes[self.selected_class]
+        content_y = rect.y + int(rect.height * 0.12)
 
-        # Descrição dinâmica da classe
-        desc_font = self.game.game_config.get_font("menu", 24)
-        desc_lines = self._wrap_text(class_data["description"], desc_font, 400)
-
-        for i, line in enumerate(desc_lines):
-            desc_surface = desc_font.render(line, True, (220, 220, 200))
-            surface.blit(desc_surface, (panel_rect.x + 30, content_y + i * 32))
-
-        content_y += len(desc_lines) * 32 + 40
-
-        # Bônus da classe
-        bonus_title_font = self.game.game_config.get_font("title", 26)
-        bonus_title = bonus_title_font.render(
-            "⚔️ Bônus de Atributos:", True, (100, 200, 255)
-        )
-        surface.blit(bonus_title, (panel_rect.x + 30, content_y))
-        content_y += 40
-
-        # Atributos base da classe (do hero.py)
-        from src.entities.hero import Hero, HeroClass  # Import correto
-
-        hero_class_enum = HeroClass(self.selected_class)
-        temp_hero = Hero("temp", hero_class_enum, self.base_attributes)
-        class_bonuses = temp_hero._get_class_bonus()
-
-        bonus_font = self.game.game_config.get_font("menu", 22)
-        for attr, value in class_bonuses.items():
-            sign = "+" if value > 0 else ""
-            attr_name = attr.upper().replace("_", " ")
-            bonus_text = bonus_font.render(
-                f"• {attr_name}: {sign}{value}",
-                True,
-                (100, 255, 100) if value > 0 else (255, 100, 100),
-            )
-            surface.blit(bonus_text, (panel_rect.x + 50, content_y))
-            content_y += 30
-
-    def _render_stats_panel(self, surface):
-        """Renderiza o painel de estatísticas (Direita)"""
-        # Mais estreito e reposicionado
-        panel_rect = pygame.Rect(1350, 120, 420, 650)
-
-        pygame.draw.rect(surface, (30, 30, 40), panel_rect, border_radius=20)
-        pygame.draw.rect(surface, (60, 60, 80), panel_rect, 2, border_radius=20)
-
-        title_font = self.game.game_config.get_font("title", 28)
-        title_text = title_font.render("ATRIBUTOS DETALHADOS", True, (200, 200, 220))
-        surface.blit(
-            title_text,
-            (panel_rect.centerx - title_text.get_width() // 2, panel_rect.y + 20),
-        )
-
-        # Área de scroll
-        scroll_area = pygame.Rect(
-            panel_rect.x + 20,
-            panel_rect.y + 70,
-            panel_rect.width - 40,
-            panel_rect.height - 90,
-        )
-        # Fundo da área de scroll
-        pygame.draw.rect(surface, (20, 20, 25), scroll_area, border_radius=15)
-
-        final_attributes = self._calculate_final_attributes()
-        self._render_scrollable_stats(surface, scroll_area, final_attributes)
-
-    def _render_scrollable_stats(self, surface, scroll_area, attributes):
-        """Renderiza estatísticas com scroll"""
-        # Grupos organizados
-        attribute_groups = {
-            "COMBATE": [
-                "vida_maxima",
-                "mana_maxima",
-                "dano_fisico_min",
-                "dano_fisico_max",
-                "dano_magico_min",
-                "dano_magico_max",
-                "defesa_fisica",
-                "defesa_magica",
-            ],
-            "AVANÇADO": [
-                "bloqueio",
-                "chance_critico",
-                "dano_critico",
-                "chance_esquiva",
-                "velocidade_ataque",
-                "precisao",
-            ],
-            "RESISTÊNCIAS": [
-                "resistencia_fogo",
-                "resistencia_gelo",
-                "resistencia_eletrico",
-                "resistencia_veneno",
-                "resistencia_escuro",
-            ],
-            "OUTROS": [
-                "regeneracao_vida",
-                "regeneracao_mana",
-                "sorte",
-                "velocidade_movimento",
-                "capacidade_carga",
-            ],
-        }
-
-        y_offset = scroll_area.y + 15 - self.stats_scroll_offset * 40
-
-        group_font = self.game.game_config.get_font("title", 30)
-        attr_font = self.game.game_config.get_font("menu", 26)
-
-        for group_name, attrs in attribute_groups.items():
-            # Renderiza Título do Grupo
-            if y_offset + 30 > scroll_area.top and y_offset < scroll_area.bottom:
-                pygame.draw.line(
-                    surface,
-                    (60, 60, 80),
-                    (scroll_area.x + 20, y_offset + 15),
-                    (scroll_area.right - 20, y_offset + 15),
-                    1,
-                )
-                group_surface = group_font.render(group_name, True, (100, 200, 255))
-                surface.blit(group_surface, (scroll_area.x + 20, y_offset))
-
-            y_offset += 35
-
-            # Renderiza Atributos do Grupo
-            for attr_key in attrs:
-                if y_offset + 25 > scroll_area.top and y_offset < scroll_area.bottom:
-                    # Nome
-                    display_name = attr_key.replace("_", " ").upper()
-                    name_surface = attr_font.render(display_name, True, (180, 180, 180))
-                    surface.blit(name_surface, (scroll_area.x + 30, y_offset))
-
-                    # Valor
-                    value = attributes.get(attr_key, 0)
-                    value_str = (
-                        str(int(value))
-                        if isinstance(value, (int, float))
-                        else str(value)
-                    )
-
-                    # Formatação especial para porcentagens
-                    if (
-                        "chance" in attr_key
-                        or "resistencia" in attr_key
-                        or "bloqueio" in attr_key
-                    ):
-                        value_str += "%"
-
-                    value_surface = attr_font.render(value_str, True, (255, 255, 255))
-                    surface.blit(
-                        value_surface,
-                        (
-                            scroll_area.right - 50 - value_surface.get_width(),
-                            y_offset,
-                        ),  # Margem extra para scrollbar
-                    )
-
-                y_offset += 35
-
-                # Linha separadora entre atributos
-                if y_offset > scroll_area.top and y_offset < scroll_area.bottom:
-                    pygame.draw.line(
-                        surface,
-                        (40, 40, 50),
-                        (scroll_area.x + 30, y_offset - 5),
-                        (scroll_area.right - 30, y_offset - 5),
-                        1,
-                    )
-
-            y_offset += 20  # Espaço entre grupos
-
-        content_height = y_offset - scroll_area.y
-        self.max_stats_scroll = max(0, (content_height - scroll_area.height) // 40)
-
-        # Desenha barra de scroll visual
-        if self.max_stats_scroll > 0:
-            scrollbar_height = max(
-                30, scroll_area.height * scroll_area.height // content_height
-            )
-            scrollbar_y = scroll_area.y + (
-                self.stats_scroll_offset / self.max_stats_scroll
-            ) * (scroll_area.height - scrollbar_height)
-            scrollbar_rect = pygame.Rect(
-                scroll_area.right - 8, scrollbar_y, 6, scrollbar_height
-            )
-            pygame.draw.rect(surface, (100, 100, 150), scrollbar_rect, border_radius=3)
-
-    def _render_class_buttons(self, surface):
-        """Renderiza os botões de classe com imagens"""
-        for i, btn in enumerate(self.class_buttons):
-            # Renderiza o botão base (fundo e borda)
-            btn.render(surface, self.game.game_config)
-
-            # Identifica a classe deste botão
-            class_keys = list(self.classes.keys())
-            if i < len(class_keys):
-                class_key = class_keys[i]
-
-                # Desenha a imagem da classe preenchendo o botão
-                if class_key in self.class_images:
-                    img = self.class_images[class_key]
-                    # Escala para o tamanho do botão (com margem maior para não vazar)
-                    icon_size = btn.rect.width - 20  # Margem de 10px de cada lado
-                    scaled_img = pygame.transform.scale(img, (icon_size, icon_size))
-
-                    # Centraliza no botão
-                    img_x = btn.rect.centerx - scaled_img.get_width() // 2
-                    img_y = btn.rect.centery - scaled_img.get_height() // 2
-
-                    # Efeito de "pressionado" se selecionado
-                    if self.selected_class == class_key:
-                        img_y += 4  # Desloca para baixo
-
-                    surface.blit(scaled_img, (img_x, img_y))
-
-                # Nome da classe ABAIXO do botão
-                name_font = self.game.game_config.get_font("menu", 18)
-                color = self.classes[class_key]["color"]
-                # Se selecionado, destaca
-                if self.selected_class == class_key:
-                    color = (255, 255, 255)
-
-                name_text = name_font.render(
-                    self.classes[class_key]["name"], True, color
-                )
-                surface.blit(
-                    name_text,
-                    (
-                        btn.rect.centerx - name_text.get_width() // 2,
-                        btn.rect.bottom + 10,
-                    ),
-                )
-
-    def _render_class_selection_label(self, surface):
-        """Renderiza o label 'ESCOLHA SUA CLASSE'"""
-        # Não é mais necessário pois os botões são auto-explicativos e têm destaque,
-        # mas podemos manter um título sutil se desejado.
-        pass
-
-    def _wrap_text(self, text, font, max_width):
-        """Quebra texto em múltiplas linhas"""
-        words = text.split(" ")
+        # Descrição
+        desc_font = self.ui_scaler.get_themed_font("menu_small")
+        words = class_data["description"].split(" ")
         lines = []
-        current_line = []
+        curr_line = []
+        max_w = rect.width - 40
 
         for word in words:
-            test_line = " ".join(current_line + [word])
-            test_width = font.size(test_line)[0]
-
-            if test_width <= max_width:
-                current_line.append(word)
+            if desc_font.size(" ".join(curr_line + [word]))[0] <= max_w:
+                curr_line.append(word)
             else:
-                lines.append(" ".join(current_line))
-                current_line = [word]
+                lines.append(" ".join(curr_line))
+                curr_line = [word]
+        lines.append(" ".join(curr_line))
 
-        if current_line:
-            lines.append(" ".join(current_line))
+        for line in lines:
+            surf = desc_font.render(line, True, (200, 200, 200))
+            surface.blit(surf, (rect.x + 20, content_y))
+            content_y += desc_font.get_linesize()
 
-        return lines
+        content_y += 20
 
-    def _scroll_up(self):
-        """Rola para cima"""
-        self.stats_scroll_offset = max(0, self.stats_scroll_offset - 1)
+        # Bônus
+        title_font = self.ui_scaler.get_themed_font("menu")
+        bonus_title = title_font.render("Bônus de Classe:", True, (100, 200, 255))
+        surface.blit(bonus_title, (rect.x + 20, content_y))
+        content_y += 30
 
-    def _scroll_down(self):
-        """Rola para baixo"""
-        self.stats_scroll_offset = min(
-            self.max_stats_scroll, self.stats_scroll_offset + 1
+        hero_class = HeroClass(self.selected_class)
+        from src.entities.hero import Hero
+
+        temp = Hero("temp", hero_class, self.base_attributes)
+        bonuses = temp._get_class_bonus()
+
+        for k, v in bonuses.items():
+            sign = "+" if v > 0 else ""
+            txt = f"• {k.upper()}: {sign}{v}"
+            col = (100, 255, 100) if v > 0 else (255, 100, 100)
+            surf = desc_font.render(txt, True, col)
+            surface.blit(surf, (rect.x + 30, content_y))
+            content_y += 25
+
+    def _render_stats_content(self, surface, x, y, w, h):
+        """Conteúdo do painel 4"""
+        rect = self.ui_scaler.rect(x, y, w, h)
+
+        scroll_area = pygame.Rect(
+            rect.x + 10,
+            rect.y + int(rect.height * 0.12),
+            rect.width - 20,
+            rect.height - int(rect.height * 0.15),
         )
+        pygame.draw.rect(surface, (20, 20, 25), scroll_area, border_radius=10)
 
-    def _update_game_slot(self, game_slot_id, hero):
-        """Atualiza o slot de jogo com as informações do personagem criado"""
-        try:
-            cursor = self.game.game_config.database.connection.cursor()
+        final_attrs = self._calculate_final_attributes()
 
-            # Obtém a classe do herói
-            class_data = self.game.game_config.database.get_hero_class_by_key(
-                hero.hero_class.value
+        # Renderiza lista simplificada para caber
+        y_off = scroll_area.y + 10
+        font = self.ui_scaler.get_themed_font("menu_small")
+
+        stats_to_show = [
+            ("Vida", final_attrs["vida_maxima"]),
+            ("Mana", final_attrs["mana_maxima"]),
+            (
+                "Dano Físico",
+                f"{final_attrs['dano_fisico_min']}-{final_attrs['dano_fisico_max']}",
+            ),
+            (
+                "Dano Mágico",
+                f"{final_attrs['dano_magico_min']}-{final_attrs['dano_magico_max']}",
+            ),
+            ("Defesa", final_attrs["defesa_fisica"]),
+            ("Def. Mágica", final_attrs["defesa_magica"]),
+            ("Crítico", f"{final_attrs['chance_critico']}%"),
+            ("Esquiva", f"{final_attrs['chance_esquiva']}%"),
+        ]
+
+        for label, val in stats_to_show:
+            lbl_surf = font.render(label, True, (180, 180, 180))
+            val_surf = font.render(str(val), True, (255, 255, 255))
+
+            surface.blit(lbl_surf, (scroll_area.x + 15, y_off))
+            surface.blit(
+                val_surf, (scroll_area.right - 15 - val_surf.get_width(), y_off)
             )
 
-            cursor.execute(
-                """
-                UPDATE game_slots 
-                SET player_name = ?, 
-                    player_class = ?, 
-                    player_level = ?,
-                    zone_name = 'Início',
-                    playtime = 0,
-                    last_played = CURRENT_TIMESTAMP,
-                    is_active = 1
-                WHERE slot_id = ?
-                """,
-                (
-                    hero.name,
-                    class_data["name"] if class_data else hero.hero_class.value,
-                    hero.level,
-                    game_slot_id,
-                ),
+            pygame.draw.line(
+                surface,
+                (40, 40, 50),
+                (scroll_area.x + 10, y_off + 20),
+                (scroll_area.right - 10, y_off + 20),
             )
-            self.game.game_config.database.connection.commit()
-            print(f"✅ Slot de jogo {game_slot_id} atualizado com {hero.name}")
-        except Exception as e:
-            print(f"❌ Erro ao atualizar slot de jogo: {e}")
+            y_off += 28
 
-    def _create_save_slots(self, game_slot_id, hero):
-        """Cria os 3 slots de save para o slot de jogo (1 auto + 2 manuais)"""
-        try:
-            cursor = self.game.game_config.database.connection.cursor()
+    def _render_class_buttons(self, surface):
+        """Renderiza botões de classe"""
+        for btn in self.class_buttons:
+            btn.render(surface)
 
-            # Obtém a classe do herói
-            class_data = self.game.game_config.database.get_hero_class_by_key(
-                hero.hero_class.value
-            )
-            class_name = class_data["name"] if class_data else hero.hero_class.value
+            # Desenha imagem da classe sobre o botão
+            rect = btn._get_scaled_rect()
 
-            # Cria os 3 slots de save
-            save_slots = [
-                (game_slot_id, 1, "auto", "Auto Save", "Save automático inicial"),
-                (game_slot_id, 2, "manual", "Save Manual 1", ""),
-                (game_slot_id, 3, "manual", "Save Manual 2", ""),
-            ]
+            # Encontra qual classe é esse botão (hacky mas funciona pelo index)
+            idx = self.class_buttons.index(btn)
+            class_key = list(self.classes.keys())[idx]
 
-            for slot_data in save_slots:
-                cursor.execute(
-                    """
-                    INSERT OR IGNORE INTO save_slots 
-                    (game_slot_id, save_slot_id, slot_type, save_title, save_description,
-                     hero_name, hero_level, hero_class, zone_name, zone_id, playtime, is_active)
-                    VALUES (?, ?, ?, ?, ?, NULL, 1, NULL, 'Início', 1, 0, 0)
-                    """,
-                    slot_data,
-                )
+            if class_key in self.class_images:
+                img = self.class_images[class_key]
+                # Escala imagem para caber no botão com margem
+                target_size = int(min(rect.width, rect.height) * 0.8)
+                scaled_img = pygame.transform.scale(img, (target_size, target_size))
 
-            self.game.game_config.database.connection.commit()
-            print(f"✅ Slots de save criados para o slot de jogo {game_slot_id}")
-        except Exception as e:
-            print(f"❌ Erro ao criar slots de save: {e}")
+                img_x = rect.centerx - scaled_img.get_width() // 2
+                img_y = rect.centery - scaled_img.get_height() // 2
+                surface.blit(scaled_img, (img_x, img_y))
 
-    def _create_auto_save(self, game_slot_id, hero):
-        """Cria o primeiro auto-save para o personagem"""
-        try:
-            cursor = self.game.game_config.database.connection.cursor()
-
-            # Obtém a classe do herói
-            class_data = self.game.game_config.database.get_hero_class_by_key(
-                hero.hero_class.value
-            )
-            class_name = class_data["name"] if class_data else hero.hero_class.value
-
-            # Atualiza o slot de auto-save (save_slot_id = 1)
-            cursor.execute(
-                """
-                UPDATE save_slots 
-                SET hero_name = ?,
-                    hero_level = ?,
-                    hero_class = ?,
-                    zone_name = 'Início',
-                    zone_id = 1,
-                    playtime = 0,
-                    save_title = 'Auto Save - Início da Jornada',
-                    save_description = ?,
-                    last_saved = CURRENT_TIMESTAMP,
-                    is_active = 1
-                WHERE game_slot_id = ? AND save_slot_id = 1
-                """,
-                (
-                    hero.name,
-                    hero.level,
-                    class_name,
-                    f"{hero.name} iniciou sua jornada como {class_name}",
-                    game_slot_id,
-                ),
-            )
-
-            self.game.game_config.database.connection.commit()
-            print(f"💾 Auto-save criado para {hero.name} no slot {game_slot_id}")
-        except Exception as e:
-            print(f"❌ Erro ao criar auto-save: {e}")
-
-    def enter(self):
-        """Chamado ao entrar no estado"""
-        print("🎭 Entrando na criação de personagem")
-
-    def exit(self):
-        """Chamado ao sair do estado"""
-        print("🎭 Saindo da criação de personagem")
-
-    def on_resize(self, old_size, new_size):
-        """Recria a UI ao redimensionar"""
-        self._create_ui()
+            # Borda de seleção
+            if self.selected_class == class_key:
+                pygame.draw.rect(surface, (255, 255, 0), rect, 3, border_radius=8)
