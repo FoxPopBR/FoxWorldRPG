@@ -22,6 +22,9 @@ class Game:
         # Inicializa janela
         self._create_window()
 
+        # Inicializa superfície do mundo (Low Res)
+        self.world_surface = pygame.Surface(self.display_config.INTERNAL_RESOLUTION)
+
         # Inicializa áudio
         self._initialize_audio()
 
@@ -141,13 +144,74 @@ class Game:
 
     def render(self):
         """Renderiza o jogo"""
+        # Limpa ambas as superfícies
         self.screen.fill(self.game_config.get_color("background"))
-        self.state_manager.render(self.screen)
+        self.world_surface.fill((0, 0, 0))  # Fundo preto pro mundo
+
+        # Renderiza estados passando ambas
+        self.state_manager.render(self.screen, self.world_surface)
+
+    def render_world_to_screen(self):
+        """Escala e desenha world_surface na screen (Mantendo Aspect Ratio)"""
+        target_w, target_h = self.screen.get_size()
+        internal_w, internal_h = self.display_config.INTERNAL_RESOLUTION
+
+        scale_w = target_w / internal_w
+        scale_h = target_h / internal_h
+        scale = min(scale_w, scale_h)
+
+        new_w = int(internal_w * scale)
+        new_h = int(internal_h * scale)
+
+        # Usa scale para pixel art (crocante) ou smoothscale para suave
+        # Como queremos pixel art, scale é melhor
+        scaled_surface = pygame.transform.scale(self.world_surface, (new_w, new_h))
+
+        x = (target_w - new_w) // 2
+        y = (target_h - new_h) // 2
+
+        self.screen.blit(scaled_surface, (x, y))
+
+    def render(self):
+        """Renderiza o jogo"""
+        # Limpa ambas as superfícies
+        self.screen.fill(self.game_config.get_color("background"))
+        self.world_surface.fill((0, 0, 0))  # Fundo preto pro mundo
+
+        # Renderiza estados passando ambas
+        self.state_manager.render(self.screen, self.world_surface)
 
         # Renderiza notificações por cima de tudo
         self.notification_manager.render(self.screen)
 
         pygame.display.flip()
+
+    def get_world_mouse_pos(self, screen_pos):
+        """Converte posição do mouse da tela para o mundo (640x360)"""
+        target_w, target_h = self.screen.get_size()
+        internal_w, internal_h = self.display_config.INTERNAL_RESOLUTION
+
+        scale_w = target_w / internal_w
+        scale_h = target_h / internal_h
+        scale = min(scale_w, scale_h)
+
+        new_w = int(internal_w * scale)
+        new_h = int(internal_h * scale)
+
+        offset_x = (target_w - new_w) // 2
+        offset_y = (target_h - new_h) // 2
+
+        mx, my = screen_pos
+
+        # Remove offset
+        mx -= offset_x
+        my -= offset_y
+
+        # Desescala
+        world_x = int(mx / scale)
+        world_y = int(my / scale)
+
+        return (world_x, world_y)
 
     def run(self):
         """Loop principal do jogo"""

@@ -18,7 +18,7 @@ class BaseState(ABC):
         pass
 
     @abstractmethod
-    def render(self, surface: pygame.Surface):
+    def render(self, surface: pygame.Surface, world_surface: pygame.Surface = None):
         pass
 
     def enter(self):

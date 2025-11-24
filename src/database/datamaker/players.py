@@ -1,4 +1,4 @@
-# src/database/damaker/players.py
+# src/database/datamaker/players.py
 from .table_creator import TableCreator
 
 
@@ -51,14 +51,45 @@ class PlayersTable(TableCreator):
             precisao REAL DEFAULT 0.0,
             regeneracao_vida REAL DEFAULT 0.0,
             regeneracao_mana REAL DEFAULT 0.0,
+            regeneracao_stamina REAL DEFAULT 0.0,
+            
+            -- Resistências Elementais
             resistencia_fogo REAL DEFAULT 0.0,
             resistencia_gelo REAL DEFAULT 0.0,
             resistencia_eletrico REAL DEFAULT 0.0,
             resistencia_veneno REAL DEFAULT 0.0,
             resistencia_escuro REAL DEFAULT 0.0,
+            resistencia_caos REAL DEFAULT 0.0,
+            
+            -- Resistências a Tipos de Dano
+            resistencia_dano_fisico REAL DEFAULT 0.0,
+            resistencia_dano_magico REAL DEFAULT 0.0,
+            
+            -- Penetrações
+            penetracao_armadura REAL DEFAULT 0.0,
+            penetracao_magica REAL DEFAULT 0.0,
+            
+            -- Danos Bônus
+            dano_fisico_bonus INTEGER DEFAULT 0,
+            dano_magico_bonus INTEGER DEFAULT 0,
+            
+            -- Roubos (Life/Mana Steal)
+            roubo_vida REAL DEFAULT 0.0,
+            roubo_mana REAL DEFAULT 0.0,
+            
+            -- Economia
+            taxa_ouro REAL DEFAULT 0.0,
+            taxa_experiencia REAL DEFAULT 0.0,
+            taxa_drop_itens REAL DEFAULT 0.0,
+            
+            -- Velocidades e Utilidade
+            velocidade_lancamento REAL DEFAULT 0.0,
+            reducao_cooldown REAL DEFAULT 0.0,
+            
             sorte REAL DEFAULT 0.0,
             velocidade_movimento REAL DEFAULT 0.0,
             capacidade_carga INTEGER DEFAULT 0,
+            stamina_maxima INTEGER DEFAULT 0,
             
             -- Localização e progresso
             zona_id INTEGER DEFAULT 1,
@@ -67,8 +98,10 @@ class PlayersTable(TableCreator):
             gold INTEGER DEFAULT 0,
             tempo_jogo INTEGER DEFAULT 0,
             
-            -- Equipamento (JSON)
-            equipamento TEXT DEFAULT '{}',
+            -- Equipamento e Inventário (JSON)
+            equipment TEXT DEFAULT '{}',
+            inventory TEXT DEFAULT '[]',
+            attribute_points INTEGER DEFAULT 0,
             
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,

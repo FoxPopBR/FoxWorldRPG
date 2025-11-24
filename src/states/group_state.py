@@ -3,15 +3,11 @@ Estado do Grupo - Exibe informações de todos os heróis do grupo
 """
 
 import pygame
-
-"""
-Estado do Grupo - Exibe informações de todos os heróis do grupo
-"""
-
-import pygame
 from src.states.base_state import BaseState
 from src.ui.button import Button
 from src.ui.button_manager import ButtonManager
+from src.ui.ui_panel import UIPanel
+from src.ui.hero_details_modal import HeroDetailsModal
 
 
 class GroupState(BaseState):
@@ -21,6 +17,15 @@ class GroupState(BaseState):
         super().__init__(game)
         self.buttons = []
         self.hero = self.game.game_config.hero_manager.get_active_hero()
+
+        # UI Assets
+        self.card_panel = UIPanel(
+            "assets/images/Box/box_menu_medio_retangulo_vertical_ferro.png",
+            corner_size=16,
+        )
+
+        # Modal
+        self.details_modal = None
 
         self._create_ui()
 
@@ -46,22 +51,81 @@ class GroupState(BaseState):
 
         self.game.state_manager.change_state(GameState(self.game))
 
+    def _open_details(self, hero):
+        """Abre modal de detalhes"""
+        self.details_modal = HeroDetailsModal(self.game, hero, self._close_details)
+
+    def _close_details(self):
+        """Fecha modal"""
+        self.details_modal = None
+
     def handle_event(self, event):
         """Processa eventos"""
+        # Se modal estiver aberto, ele consome eventos
+        if self.details_modal:
+            if self.details_modal.handle_event(event):
+                return
+            # Se modal não consumiu, mas está aberto, bloqueia outros inputs?
+            # Geralmente sim. Mas vamos permitir ESC fechar o modal
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self._close_details()
+                return
+            return
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_F4:
                 self._back_to_game()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            ButtonManager.handle_button_click(self.buttons, event, self.game)
+            if ButtonManager.handle_button_click(self.buttons, event, self.game):
+                return
+
+            # Verifica clique nos cards de herói
+            # Recalcula rects (poderia cachear, mas layout é dinâmico)
+            self._check_card_click(event.pos)
+
+    def _check_card_click(self, mouse_pos):
+        # Lógica de layout duplicada do render... idealmente extrair
+        # Mas para simplificar, vamos recalcular aqui
+        screen_width = self.game.display_config.width
+        screen_height = self.game.display_config.height
+
+        container_x = self.ui_scaler.scale(96, "x")
+        container_y = self.ui_scaler.scale(162, "y")
+        container_w = self.ui_scaler.scale(1728, "x")
+        container_h = self.ui_scaler.scale(756, "y")
+
+        group_rect = pygame.Rect(container_x, container_y, container_w, container_h)
+
+        margin_x = int(container_w * 0.02)
+        margin_y = int(container_h * 0.05)
+        available_w = container_w - (margin_x * 2)
+        available_h = container_h - (margin_y * 2)
+        spacing = int(available_w * 0.02)
+        slot_w = (available_w - (spacing * 3)) // 4
+        slot_h = available_h
+        start_x = group_rect.left + margin_x
+        start_y = group_rect.top + margin_y
+
+        for i in range(4):
+            box_x = start_x + i * (slot_w + spacing)
+            box_rect = pygame.Rect(box_x, start_y, slot_w, slot_h)
+
+            if box_rect.collidepoint(mouse_pos):
+                if i == 0 and self.hero:  # Por enquanto só herói 1
+                    self._open_details(self.hero)
 
     def update(self):
         """Atualiza o estado"""
+        if self.details_modal:
+            self.details_modal.update()
+            return
+
         mouse_pos = pygame.mouse.get_pos()
         for btn in self.buttons:
             btn.update(mouse_pos)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         """Renderiza a tela"""
         surface.fill(self.theme.COLOR_BACKGROUND)
 
@@ -80,35 +144,21 @@ class GroupState(BaseState):
         )
 
         # Container Principal
-        # Base: 1920x1080
-        # Margem 5% = 96px
-        # Largura 90% = 1728px
-        # Altura 70% = 756px
-        # Y = 15% = 162px
-
         container_x = self.ui_scaler.scale(96, "x")
         container_y = self.ui_scaler.scale(162, "y")
         container_w = self.ui_scaler.scale(1728, "x")
         container_h = self.ui_scaler.scale(756, "y")
 
         group_rect = pygame.Rect(container_x, container_y, container_w, container_h)
-        pygame.draw.rect(
-            surface, self.theme.COLOR_BG_CARD, group_rect, border_radius=20
-        )
-        pygame.draw.rect(
-            surface, self.theme.COLOR_BORDER_DEFAULT, group_rect, 2, border_radius=20
-        )
+
+        # Fundo do container (opcional, já que teremos os cards)
+        # pygame.draw.rect(surface, self.theme.COLOR_BG_CARD, group_rect, border_radius=20)
 
         # Renderiza boxes dos heróis
-        # 4 slots distribuídos igualmente dentro do container
         margin_x = int(container_w * 0.02)
         margin_y = int(container_h * 0.05)
-
-        # Espaço disponível para slots
         available_w = container_w - (margin_x * 2)
         available_h = container_h - (margin_y * 2)
-
-        # Largura de cada slot (4 slots + 3 espaçamentos)
         spacing = int(available_w * 0.02)
         slot_w = (available_w - (spacing * 3)) // 4
         slot_h = available_h
@@ -120,17 +170,8 @@ class GroupState(BaseState):
             box_x = start_x + i * (slot_w + spacing)
             box_rect = pygame.Rect(box_x, start_y, slot_w, slot_h)
 
-            # Fundo do box
-            if i == 0 and self.hero:
-                # Herói ativo - destaque
-                pygame.draw.rect(surface, (40, 40, 50), box_rect, border_radius=15)
-                pygame.draw.rect(
-                    surface, self.theme.COLOR_ACCENT_BLUE, box_rect, 3, border_radius=15
-                )
-            else:
-                # Slot vazio
-                pygame.draw.rect(surface, (25, 25, 30), box_rect, border_radius=15)
-                pygame.draw.rect(surface, (50, 50, 60), box_rect, 2, border_radius=15)
+            # Desenha Painel (Card)
+            self.card_panel.draw(surface, box_rect)
 
             # Conteúdo do box
             if i == 0 and self.hero:
@@ -152,7 +193,7 @@ class GroupState(BaseState):
         # Info de atalho (Rodapé)
         info_font = self.ui_scaler.get_themed_font("menu_small")
         info_text = info_font.render(
-            "Pressione ESC ou F4 para voltar ao jogo",
+            "Clique no herói para detalhes | ESC voltar",
             True,
             self.theme.COLOR_TEXT_SECONDARY,
         )
@@ -166,21 +207,30 @@ class GroupState(BaseState):
         for btn in self.buttons:
             btn.render(surface)
 
+        # Renderiza Modal (se aberto)
+        if self.details_modal:
+            # Overlay escuro
+            overlay = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 180))
+            surface.blit(overlay, (0, 0))
+
+            self.details_modal.draw(surface)
+
     def _render_hero_box(self, surface, box_rect, hero):
         """Renderiza informações de um herói no box (Relativo ao box)"""
         scaler = self.game.ui_scaler
 
+        # Margem superior interna
         y_offset = box_rect.top + int(box_rect.height * 0.05)
 
-        # Nome
-        name_font = scaler.get_themed_font("title")
+        # 1. Nome (Fonte Maior)
+        name_font = scaler.get_themed_font("title_large")  # Aumentado
         name_text = name_font.render(
             hero.name.upper(), True, self.theme.COLOR_TEXT_PRIMARY
         )
-
-        # Verifica se cabe
+        # Se nome muito grande, reduz fonte
         if name_text.get_width() > box_rect.width - 20:
-            name_font = scaler.get_themed_font("menu")  # Reduz fonte
+            name_font = scaler.get_themed_font("title")
             name_text = name_font.render(
                 hero.name.upper(), True, self.theme.COLOR_TEXT_PRIMARY
             )
@@ -188,121 +238,126 @@ class GroupState(BaseState):
         surface.blit(
             name_text, (box_rect.centerx - name_text.get_width() // 2, y_offset)
         )
-        y_offset += name_text.get_height() + int(box_rect.height * 0.02)
+        y_offset += name_text.get_height() + 15
 
-        # Imagem do Rosto (Face)
-        # Tamanho relativo: 30% da largura do box
-        face_size = int(box_rect.width * 0.4)
+        # 2. Imagem do Rosto (Face)
+        face_size = int(box_rect.width * 0.6)  # Aumentado um pouco
         face_x = box_rect.centerx - face_size // 2
+
+        # Moldura Face
+        pygame.draw.rect(
+            surface,
+            (20, 20, 20),
+            (face_x - 4, y_offset - 4, face_size + 8, face_size + 8),
+        )
+        pygame.draw.rect(
+            surface,
+            (100, 100, 100),
+            (face_x - 2, y_offset - 2, face_size + 4, face_size + 4),
+            2,
+        )
 
         if hero.image_face:
             face_img = pygame.transform.scale(hero.image_face, (face_size, face_size))
-
-            # Moldura
-            pygame.draw.rect(
-                surface,
-                (20, 20, 30),
-                (face_x - 2, y_offset - 2, face_size + 4, face_size + 4),
-                border_radius=10,
-            )
-            pygame.draw.rect(
-                surface,
-                self.theme.COLOR_BORDER_DEFAULT,
-                (face_x - 2, y_offset - 2, face_size + 4, face_size + 4),
-                2,
-                border_radius=10,
-            )
             surface.blit(face_img, (face_x, y_offset))
         else:
             pygame.draw.rect(
-                surface,
-                (50, 50, 60),
-                (face_x, y_offset, face_size, face_size),
-                border_radius=10,
+                surface, (50, 50, 60), (face_x, y_offset, face_size, face_size)
             )
 
-        y_offset += face_size + int(box_rect.height * 0.03)
+        y_offset += face_size + 20
 
-        # Classe e Nível
-        info_font = scaler.get_themed_font("menu_small")
+        # 3. Classe e Nível (Fonte Média)
+        info_font = scaler.get_themed_font("menu")  # Aumentado de menu_small
         class_text = info_font.render(
-            hero.hero_class.value.upper(), True, self.theme.COLOR_ACCENT_BLUE
+            f"{hero.hero_class.value.upper()}", True, (200, 200, 255)
         )
-        level_text = info_font.render(
-            f"Nível {hero.level}", True, self.theme.COLOR_TEXT_SECONDARY
-        )
-
         surface.blit(
             class_text, (box_rect.centerx - class_text.get_width() // 2, y_offset)
         )
         y_offset += class_text.get_height() + 5
-        surface.blit(
-            level_text, (box_rect.centerx - level_text.get_width() // 2, y_offset)
-        )
-        y_offset += level_text.get_height() + int(box_rect.height * 0.03)
 
-        # Barras
+        lvl_text = info_font.render(
+            f"Lvl {hero.level} - XP {hero.experience}/{hero.experience_to_next_level}",
+            True,
+            (255, 255, 200),
+        )
+        surface.blit(lvl_text, (box_rect.centerx - lvl_text.get_width() // 2, y_offset))
+        y_offset += lvl_text.get_height() + 20
+
+        # 4. Barras de Status (HP, MP, Stamina)
         bar_w = int(box_rect.width * 0.8)
-        bar_h = int(box_rect.height * 0.03)
+        bar_h = 24  # Barra mais grossa para caber texto
         bar_x = box_rect.centerx - bar_w // 2
 
+        # Fonte para texto dentro da barra
+        bar_font = scaler.get_themed_font("text_bold")  # Fonte legível
+
+        # Helper para desenhar barra com texto
+        def draw_stat_bar(current, maximum, color_fill, color_bg, label):
+            nonlocal y_offset
+            pct = max(0, min(1, current / max(1, maximum)))
+
+            # Fundo
+            pygame.draw.rect(surface, color_bg, (bar_x, y_offset, bar_w, bar_h))
+            # Preenchimento
+            pygame.draw.rect(
+                surface, color_fill, (bar_x, y_offset, int(bar_w * pct), bar_h)
+            )
+            # Borda
+            pygame.draw.rect(
+                surface, (200, 200, 200), (bar_x, y_offset, bar_w, bar_h), 2
+            )
+
+            # Texto Centralizado (Ex: "HP: 100/100")
+            txt = f"{label}: {int(current)}/{int(maximum)}"
+            txt_surf = bar_font.render(txt, True, (255, 255, 255))
+
+            # Sombra do texto para legibilidade
+            txt_shadow = bar_font.render(txt, True, (0, 0, 0))
+            surface.blit(
+                txt_shadow,
+                (
+                    box_rect.centerx - txt_surf.get_width() // 2 + 1,
+                    y_offset + bar_h // 2 - txt_surf.get_height() // 2 + 1,
+                ),
+            )
+            surface.blit(
+                txt_surf,
+                (
+                    box_rect.centerx - txt_surf.get_width() // 2,
+                    y_offset + bar_h // 2 - txt_surf.get_height() // 2,
+                ),
+            )
+
+            y_offset += bar_h + 10
+
         # HP
-        hp_pct = hero.stats.vida_atual / hero.stats.vida_maxima
-        pygame.draw.rect(
-            surface, (50, 50, 60), (bar_x, y_offset, bar_w, bar_h), border_radius=4
+        draw_stat_bar(
+            hero.stats.vida_atual,
+            hero.stats.vida_maxima,
+            (180, 40, 40),
+            (60, 10, 10),
+            "HP",
         )
-        pygame.draw.rect(
-            surface,
-            (200, 50, 50),
-            (bar_x, y_offset, int(bar_w * hp_pct), bar_h),
-            border_radius=4,
-        )
-
-        hp_txt = info_font.render(
-            f"HP {hero.stats.vida_atual}/{hero.stats.vida_maxima}",
-            True,
-            (255, 255, 255),
-        )
-        surface.blit(
-            hp_txt, (box_rect.centerx - hp_txt.get_width() // 2, y_offset - 2)
-        )  # Texto sobre a barra
-
-        y_offset += bar_h + 10
 
         # MP
-        mp_pct = hero.stats.mana_atual / hero.stats.mana_maxima
-        pygame.draw.rect(
-            surface, (50, 50, 60), (bar_x, y_offset, bar_w, bar_h), border_radius=4
-        )
-        pygame.draw.rect(
-            surface,
-            (50, 50, 200),
-            (bar_x, y_offset, int(bar_w * mp_pct), bar_h),
-            border_radius=4,
+        draw_stat_bar(
+            hero.stats.mana_atual,
+            hero.stats.mana_maxima,
+            (40, 40, 180),
+            (10, 10, 60),
+            "MP",
         )
 
-        mp_txt = info_font.render(
-            f"MP {hero.stats.mana_atual}/{hero.stats.mana_maxima}",
-            True,
-            (255, 255, 255),
+        # Stamina
+        draw_stat_bar(
+            hero.stats.stamina_atual,
+            hero.stats.stamina_maxima,
+            (40, 180, 40),
+            (10, 60, 10),
+            "ST",
         )
-        surface.blit(mp_txt, (box_rect.centerx - mp_txt.get_width() // 2, y_offset - 2))
-
-        y_offset += bar_h + int(box_rect.height * 0.05)
-
-        # Atributos
-        attr_font = scaler.get_themed_font("menu_small")
-        attrs = [
-            ("FOR", hero.stats.forca),
-            ("DES", hero.stats.destreza),
-            ("VIT", hero.stats.vitalidade),
-            ("INT", hero.stats.inteligencia),
-        ]
-
-        for k, v in attrs:
-            txt = attr_font.render(f"{k}: {v}", True, self.theme.COLOR_TEXT_SECONDARY)
-            surface.blit(txt, (bar_x, y_offset))
-            y_offset += txt.get_height() + 5
 
     def on_resize(self, old_size, new_size):
         """Recria UI ao redimensionar"""

@@ -184,24 +184,7 @@ class AudioSettingsState(BaseState):
                 all_buttons.extend([minus_btn, plus_btn])
             all_buttons.extend(self.action_buttons)
 
-            # Processar eventos de mouse nos botões
-            for button in all_buttons:
-                if button.handle_event(event):
-                    break
-
-    def update(self):
-        dt = 1.0 / 60.0
-        mouse_pos = pygame.mouse.get_pos()
-
-        all_buttons = []
-        for minus_btn, label_btn, plus_btn in self.volume_controls:
-            all_buttons.extend([minus_btn, label_btn, plus_btn])
-        all_buttons.extend(self.action_buttons)
-
-        for button in all_buttons:
-            button.update(mouse_pos, dt=dt)
-
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         # Fundo com escurecimento
         render_menu_background(
             surface, self.menu_assets["background"], self.theme, darkness=0.5

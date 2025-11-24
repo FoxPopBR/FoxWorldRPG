@@ -88,43 +88,6 @@ class ThemeSelectionState(BaseState):
 
     def _back(self):
         """Volta para o menu de configurações"""
-        self.game.state_manager.pop_state()
-
-    def handle_event(self, event):
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                self._back()
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Verifica botões
-            all_buttons = self.buttons + self.theme_buttons
-            for button in all_buttons:
-                if button.handle_event(event):
-                    return
-
-    def update(self):
-        dt = 1.0 / 60.0
-        mouse_pos = pygame.mouse.get_pos()
-        all_buttons = self.buttons + self.theme_buttons
-
-        for button in all_buttons:
-            button.update(mouse_pos, dt=dt)
-
-    def render(self, surface):
-        # Fundo com escurecimento
-        render_menu_background(
-            surface, self.menu_assets["background"], self.theme, darkness=0.5
-        )
-
-        # Título
-        title_font = self.ui_scaler.get_themed_font("title")
-        title_text = title_font.render(
-            "Selecionar Tema", True, self.theme.COLOR_TEXT_PRIMARY
-        )
-        title_y = self.ui_scaler.scale(100, "y")
-        title_rect = title_text.get_rect(center=(surface.get_width() // 2, title_y))
-        surface.blit(title_text, title_rect)
-
-        # Tema atual
         current_theme = self.game.game_config.theme_manager.current_theme
         theme_font = self.ui_scaler.get_themed_font("menu")
         theme_text = theme_font.render(

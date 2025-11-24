@@ -1,0 +1,57 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "map_teste.tmx",
+    "expandedProjectPaths": [
+    ],
+    "file.lastUsedOpenFilter": "Todos os Ficheiros (*)",
+    "fileStates": {
+        "#Tiles001": {
+            "scaleInDock": 1,
+            "scaleInEditor": 1
+        },
+        "#basictiles": {
+            "scaleInDock": 1
+        },
+        "#tile002": {
+            "scaleInDock": 1
+        },
+        ":/automap-tiles.tsx": {
+            "scaleInDock": 1
+        },
+        "map_teste.tmx": {
+            "scale": 1,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 714,
+                "y": 503
+            }
+        },
+        "map_teste.tmx#Cliff_tileset": {
+            "scaleInDock": 1
+        },
+        "map_teste.tmx#ground_tiles": {
+            "scaleInDock": 1
+        }
+    },
+    "last.imagePath": "C:/Users/Fabio/Downloads",
+    "map.height": 64,
+    "map.lastUsedFormat": "tmx",
+    "map.tileHeight": 32,
+    "map.tileWidth": 32,
+    "map.width": 64,
+    "openFiles": [
+        "map_teste.tmx"
+    ],
+    "project": "Fox World RPG.tiled-project",
+    "recentFiles": [
+        "map_teste.tmx"
+    ],
+    "tileset.embedInMap": true,
+    "tileset.tileSize": {
+        "height": 32,
+        "width": 32
+    }
+}

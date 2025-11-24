@@ -114,6 +114,17 @@ class HeroManager:
         # Carrega assets se disponível
         self._load_hero_assets(hero)
 
+        # Recalcula derivados para garantir consistência
+        hero._calculate_derived_stats()
+
+        # Failsafe: Se stats estiverem zerados (bug de save antigo), cura o herói
+        if hero.stats.vida_atual <= 0:
+            hero.stats.vida_atual = hero.stats.vida_maxima
+        if hero.stats.mana_atual <= 0:
+            hero.stats.mana_atual = hero.stats.mana_maxima
+        if hero.stats.stamina_atual <= 0:
+            hero.stats.stamina_atual = hero.stats.stamina_maxima
+
         return hero
 
     def _load_hero_assets(self, hero: Hero):
@@ -184,7 +195,7 @@ class HeroManager:
             "posicao_y": hero.posicao_y,
             "gold": hero.gold,
             "tempo_jogo": hero.tempo_jogo,
-            "equipamento": "{}",
+            "equipment": "{}",
         }
 
         return player_data

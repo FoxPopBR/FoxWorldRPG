@@ -185,7 +185,7 @@ class VideoSettingsState(BaseState):
         for button in self.buttons:
             button.update(mouse_pos, dt=dt)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         # Fundo com escurecimento
         render_menu_background(
             surface, self.menu_assets["background"], self.theme, darkness=0.5

@@ -54,7 +54,7 @@ class InventoryState(BaseState):
         for btn in self.buttons:
             btn.update(mouse_pos)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         """Renderiza a tela"""
         surface.fill(self.theme.COLOR_BACKGROUND)
 

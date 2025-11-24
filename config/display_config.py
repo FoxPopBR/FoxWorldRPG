@@ -7,29 +7,15 @@ from typing import Tuple, List
 class DisplayConfig:
     """Configurações de display e vídeo usando banco de dados"""
 
-    # Resoluções suportadas - de 720p até 2K
+    # Internal Resolution (World Rendering)
+    INTERNAL_RESOLUTION: Tuple[int, int] = (640, 360)
+
+    # Resoluções suportadas - Baseadas em escala de 640x360
+    # Cada resolução é um múltiplo inteiro da resolução interna
     SUPPORTED_RESOLUTIONS: Tuple[Tuple[int, int], ...] = (
-        # HD (720p)
-        (1280, 720),  # HD padrão 16:9
-        (1280, 768),  # WXGA
-        (1280, 800),  # WXGA 16:10
-        (1280, 960),  # 4:3
-        (1280, 1024),  # SXGA 5:4
-        # HD+ / WXGA+
-        (1366, 768),  # HD+ (comum em notebooks)
-        (1440, 900),  # WXGA+ 16:10
-        (1440, 1080),  # 4:3 HD+
-        # FHD- (intermediárias)
-        (1600, 900),  # HD+ 16:9
-        (1600, 1024),  #
-        (1600, 1200),  # UXGA 4:3
-        (1680, 1050),  # WSXGA+ 16:10
-        # Full HD (1080p)
-        (1920, 1080),  # FHD 16:9 (base de design)
-        (1920, 1200),  # WUXGA 16:10
-        # 2K / QHD
-        (2048, 1080),  # DCI 2K (cinema)
-        (2560, 1440),  # QHD/2K 16:9
+        (1280, 720),  # 640×360 × 2 (HD 720p)
+        (1920, 1080),  # 640×360 × 3 (Full HD 1080p)
+        (2560, 1440),  # 640×360 × 4 (QHD 2K)
     )
 
     def __init__(self, settings_manager):
@@ -44,6 +30,21 @@ class DisplayConfig:
         resolution = video_settings.get("resolution", (1920, 1080))
         if isinstance(resolution, list):
             resolution = tuple(resolution)
+
+        # VALIDAÇÃO: Migrar para resolução suportada se necessário
+        if resolution not in self.SUPPORTED_RESOLUTIONS:
+            print(f"⚠️ Resolução {resolution} não é mais suportada")
+            # Migra para a resolução mais próxima
+            old_width = resolution[0]
+            if old_width < 1500:  # Menor que 1920/2
+                resolution = (1280, 720)
+            elif old_width < 2200:  # Menor que 2560/2
+                resolution = (1920, 1080)
+            else:
+                resolution = (2560, 1440)
+            print(f"🔄 Migrando para: {resolution}")
+            # Salva a nova resolução
+            self.settings_manager.set_video_setting("resolution", resolution)
 
         self.current_resolution = resolution
         self.fullscreen = video_settings.get("fullscreen", False)
@@ -73,3 +74,11 @@ class DisplayConfig:
         self.vsync = True
         self.fps = 60
         self.save_to_file()
+
+    @property
+    def width(self) -> int:
+        return self.current_resolution[0]
+
+    @property
+    def height(self) -> int:
+        return self.current_resolution[1]

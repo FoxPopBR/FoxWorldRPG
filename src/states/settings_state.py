@@ -106,12 +106,10 @@ class SettingsState(BaseState):
                 self._open_audio_settings()
             elif event.key == pygame.K_t:
                 self._open_theme_selection()
-
-        else:
-            # Processar eventos de mouse nos botões
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            # Processa cliques dos botões
             for button in self.buttons:
-                if button.handle_event(event):
-                    break
+                button.handle_event(event)
 
     def update(self):
         """Atualiza a lógica do estado"""
@@ -120,7 +118,7 @@ class SettingsState(BaseState):
         for button in self.buttons:
             button.update(mouse_pos, dt=dt)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         """Renderiza o estado"""
         # Fundo com escurecimento
         render_menu_background(

@@ -152,7 +152,7 @@ class CharacterCreationService:
             "posicao_y": 0.0,
             "gold": 0,
             "tempo_jogo": 0,
-            "equipamento": "{}",
+            "equipment": "{}",
         }
 
         return character_data

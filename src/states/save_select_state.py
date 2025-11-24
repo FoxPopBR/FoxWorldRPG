@@ -282,7 +282,7 @@ class SaveSelectState(BaseState):
             for btn in buttons:
                 btn.update(mouse_pos)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         """Renderiza a tela de seleção de saves"""
         surface.fill(self.theme.COLOR_BACKGROUND)
 

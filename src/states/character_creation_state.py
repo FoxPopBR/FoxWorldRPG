@@ -434,7 +434,7 @@ class CharacterCreationState(BaseState):
         for btn in all_buttons:
             btn.update(mouse_pos)
 
-    def render(self, surface):
+    def render(self, surface, world_surface=None):
         surface.fill(self.theme.COLOR_BACKGROUND)
 
         # Título

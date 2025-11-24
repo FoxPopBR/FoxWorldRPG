@@ -1,0 +1,73 @@
+{
+    "status_effects": {
+        "poison": {"coords": [0, 1], "description": "Veneno"},
+        "blind": {"coords": [0, 2], "description": "Cegueira"},
+        "silence": {"coords": [0, 3], "description": "Silêncio"},
+        "fear": {"coords": [0, 4], "description": "Medo"},
+        "stun": {"coords": [0, 5], "description": "Atordoado"},
+        "charm": {"coords": [0, 6], "description": "Enfeitiçado"},
+        "sleep": {"coords": [0, 7], "description": "Dormindo"},
+        "shock": {"coords": [0, 8], "description": "Choque"},
+        "burn": {"coords": [0, 9], "description": "Queimadura"},
+        "frozen": {"coords": [0, 10], "description": "Congelado"}
+    },
+    "weapons": {
+        "wooden_sword": {"coords": [5, 0], "description": "Espada de Madeira"},
+        "iron_sword": {"coords": [5, 1], "description": "Espada de Ferro"},
+        "steel_sword": {"coords": [5, 2], "description": "Espada de Aço"},
+        "long_sword": {"coords": [5, 3], "description": "Espada Longa"},
+        "dagger": {"coords": [5, 4], "description": "Adaga"},
+        "scimitar": {"coords": [5, 5], "description": "Cimitarra"},
+        "golden_sword": {"coords": [5, 6], "description": "Espada Dourada"},
+        "dark_sword": {"coords": [5, 7], "description": "Espada Escura"},
+        "magic_sword": {"coords": [5, 8], "description": "Espada Mágica"},
+        "dual_swords": {"coords": [5, 9], "description": "Espadas Duplas"},
+        "axe_basic": {"coords": [5, 10], "description": "Machado Básico"},
+        "axe_battle": {"coords": [5, 11], "description": "Machado de Batalha"},
+        "mace": {"coords": [5, 13], "description": "Maça"},
+        "club": {"coords": [5, 14], "description": "Clava"},
+        "whip": {"coords": [5, 15], "description": "Chicote"}
+    },
+    "shields": {
+        "wooden_shield": {"coords": [7, 0], "description": "Escudo de Madeira"},
+        "iron_shield": {"coords": [7, 1], "description": "Escudo de Ferro"},
+        "steel_shield": {"coords": [7, 2], "description": "Escudo de Aço"}
+    },
+    "armor": {
+        "leather_helmet": {"coords": [8, 1], "description": "Elmo de Couro"},
+        "iron_helmet": {"coords": [8, 2], "description": "Elmo de Ferro"},
+        "steel_helmet": {"coords": [8, 3], "description": "Elmo de Aço"},
+        "leather_armor": {"coords": [8, 4], "description": "Armadura de Couro"},
+        "iron_armor": {"coords": [8, 5], "description": "Armadura de Ferro"},
+        "steel_armor": {"coords": [8, 6], "description": "Armadura de Aço"},
+        "robe_blue": {"coords": [8, 7], "description": "Manto Azul"},
+        "robe_green": {"coords": [8, 8], "description": "Manto Verde"},
+        "pants_leather": {"coords": [8, 9], "description": "Calça de Couro"},
+        "pants_iron": {"coords": [8, 10], "description": "Calça de Ferro"}
+    },
+    "accessories": {
+        "gloves_leather": {"coords": [9, 0], "description": "Luvas de Couro"},
+        "gloves_iron": {"coords": [9, 1], "description": "Luvas de Ferro"},
+        "boots_leather": {"coords": [9, 2], "description": "Botas de Couro"},
+        "boots_iron": {"coords": [9, 3], "description": "Botas de Ferro"},
+        "ring_gold": {"coords": [9, 4], "description": "Anel de Ouro"},
+        "ring_diamond": {"coords": [9, 5], "description": "Anel de Diamante"},
+        "necklace_gold": {"coords": [9, 6], "description": "Colar de Ouro"},
+        "necklace_ruby": {"coords": [9, 7], "description": "Colar de Rubi"}
+    },
+    "consumables": {
+        "health_potion_small": {"coords": [10, 0], "description": "Poção de Vida Pequena"},
+        "mana_potion_small": {"coords": [10, 1], "description": "Poção de Mana Pequena"},
+        "stamina_potion_small": {"coords": [10, 2], "description": "Poção de Stamina Pequena"},
+        "health_potion_medium": {"coords": [10, 4], "description": "Poção de Vida Média"},
+        "mana_potion_medium": {"coords": [10, 5], "description": "Poção de Mana Média"},
+        "antidote": {"coords": [10, 6], "description": "Antídoto"}
+    },
+    "materials": {
+        "wood": {"coords": [14, 0], "description": "Madeira"},
+        "stone": {"coords": [14, 1], "description": "Pedra"},
+        "iron_ore": {"coords": [14, 2], "description": "Minério de Ferro"},
+        "gold_bar": {"coords": [14, 3], "description": "Barra de Ouro"},
+        "diamond": {"coords": [14, 4], "description": "Diamante"}
+    }
+}

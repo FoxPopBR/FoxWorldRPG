@@ -165,173 +165,10 @@ class GameSlotSelectState(BaseState):
                     button_image_normal=self.menu_assets["button_normal"],
                     button_image_pressed=self.menu_assets["button_pressed"],
                 )
-
                 self.slot_action_buttons[slot_id] = {
                     "load": load_btn,
                     "delete": delete_btn,
                 }
-
-    def render(self, surface):
-        """Renderiza o estado (required by BaseState)"""
-        # Render background with overlay
-        render_menu_background(
-            surface, self.menu_assets["background"], self.theme, darkness=0.5
-        )
-
-        # Renderiza título
-        title_font = self.ui_scaler.get_themed_font("title")
-        title_text = title_font.render(
-            "SELECIONE SEU JOGO", True, self.theme.COLOR_TEXT_PRIMARY
-        )
-        title_y = self.ui_scaler.scale(120, "y")
-        title_rect = title_text.get_rect(center=(surface.get_width() // 2, title_y))
-        surface.blit(title_text, title_rect)
-
-        # Dimensões calculadas para renderização (mesma lógica do create_ui)
-        slot_w = int(self.base_w * self.slot_width_pct)
-        slot_h = int(self.base_h * self.slot_height_pct)
-        spacing_x = int(self.base_w * self.spacing_x_pct)
-        spacing_y = int(self.base_h * self.spacing_y_pct)
-
-        total_grid_w = (2 * slot_w) + spacing_x
-        start_x = (self.base_w - total_grid_w) // 2
-        start_y = int(self.base_h * 0.20)
-
-        # Renderiza cards dos slots
-        for i, slot in enumerate(self.game_slots):
-            col = i % 2
-            row = i // 2
-
-            base_x = start_x + col * (slot_w + spacing_x)
-            base_y = start_y + row * (slot_h + spacing_y)
-
-            # Escala o slot
-            slot_rect = self.ui_scaler.rect(base_x, base_y, slot_w, slot_h)
-
-            # Desenha card
-            is_empty = not slot["player_name"]
-            bg_color = self.theme.COLOR_BG_CARD if is_empty else (50, 60, 70)
-            border_color = (
-                self.theme.COLOR_BORDER_EMPTY
-                if is_empty
-                else self.theme.COLOR_BORDER_ACTIVE
-            )
-
-            pygame.draw.rect(surface, bg_color, slot_rect, border_radius=15)
-            pygame.draw.rect(surface, border_color, slot_rect, 2, border_radius=15)
-
-            # Número do slot
-            slot_font = self.ui_scaler.get_themed_font("hud")
-            slot_text = slot_font.render(
-                f"SLOT {i+1}", True, self.theme.COLOR_TEXT_SECONDARY
-            )
-            surface.blit(slot_text, (slot_rect.x + 20, slot_rect.y + 15))
-
-            if is_empty:
-                # Texto VAZIO
-                empty_font = self.ui_scaler.get_themed_font("menu")
-                empty_text = empty_font.render(
-                    "VAZIO", True, self.theme.COLOR_TEXT_HINT
-                )
-                surface.blit(
-                    empty_text,
-                    (
-                        slot_rect.centerx - empty_text.get_width() // 2,
-                        slot_rect.centery - empty_text.get_height() // 2,
-                    ),
-                )
-            else:
-                # Informações do slot ocupado
-                info_font = self.ui_scaler.get_themed_font("menu")
-
-                name_text = info_font.render(
-                    f"👤 {slot['player_name']}", True, self.theme.COLOR_TEXT_PRIMARY
-                )
-                surface.blit(name_text, (slot_rect.x + 20, slot_rect.y + 50))
-
-                if slot.get("player_class"):
-                    class_text = info_font.render(
-                        f"⚔️ {slot['player_class']}",
-                        True,
-                        self.theme.COLOR_TEXT_SECONDARY,
-                    )
-                    surface.blit(class_text, (slot_rect.x + 20, slot_rect.y + 80))
-
-                level_text = info_font.render(
-                    f"Nível {slot.get('player_level', 1)}",
-                    True,
-                    self.theme.COLOR_TEXT_SECONDARY,
-                )
-                surface.blit(level_text, (slot_rect.x + 20, slot_rect.y + 110))
-
-        # Renderiza botões
-        for btn in self.buttons:
-            btn.render(surface)
-
-        for buttons_dict in self.slot_action_buttons.values():
-            for btn in buttons_dict.values():
-                if btn:
-                    btn.render(surface)
-
-        # Modal de confirmação
-        if self.confirm_delete_slot and self.confirm_button:
-            # Overlay escuro
-            overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))
-            surface.blit(overlay, (0, 0))
-
-            # Caixa de confirmação
-            base_box_x = (self.theme.BASE_WIDTH - 600) // 2
-            base_box_y = (self.theme.BASE_HEIGHT - 200) // 2
-            box_rect = self.ui_scaler.rect(base_box_x, base_box_y, 600, 200)
-
-            pygame.draw.rect(
-                surface, self.theme.COLOR_BG_MODAL, box_rect, border_radius=20
-            )
-            pygame.draw.rect(
-                surface, self.theme.COLOR_BORDER_WARNING, box_rect, 3, border_radius=20
-            )
-
-            # Texto
-            title_font = self.ui_scaler.get_themed_font("title")
-            title_text = title_font.render(
-                "⚠️ CONFIRMAÇÃO", True, self.theme.COLOR_TEXT_WARNING
-            )
-            surface.blit(
-                title_text,
-                (
-                    box_rect.centerx - title_text.get_width() // 2,
-                    box_rect.y + self.ui_scaler.scale(30, "y"),
-                ),
-            )
-
-            msg_font = self.ui_scaler.get_themed_font("menu")
-            msg_text = msg_font.render(
-                f"Deletar SLOT {self.confirm_delete_slot}?",
-                True,
-                self.theme.COLOR_TEXT_PRIMARY,
-            )
-            surface.blit(
-                msg_text,
-                (
-                    box_rect.centerx - msg_text.get_width() // 2,
-                    box_rect.y + self.ui_scaler.scale(90, "y"),
-                ),
-            )
-
-            hint_font = self.ui_scaler.get_themed_font("menu_small")
-            hint_text = hint_font.render(
-                "Pressione ESC para cancelar", True, self.theme.COLOR_TEXT_HINT
-            )
-            surface.blit(
-                hint_text,
-                (
-                    box_rect.centerx - hint_text.get_width() // 2,
-                    box_rect.y + self.ui_scaler.scale(140, "y"),
-                ),
-            )
-
-            self.confirm_button.render(surface)
 
     # ==================== ACTION METHODS ====================
 
@@ -478,3 +315,157 @@ class GameSlotSelectState(BaseState):
         # Handle confirm button event
         if self.confirm_button:
             self.confirm_button.handle_event(event)
+
+    def render(self, surface, world_surface=None):
+        """Renderiza o estado"""
+        # Desenha fundo
+        render_menu_background(surface, self.menu_assets["background"], self.theme)
+
+        # Título
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "SELECIONE SEU JOGO", True, self.theme.COLOR_TEXT_PRIMARY
+        )
+        title_y = self.ui_scaler.scale(80, "y")
+        surface.blit(
+            title_text,
+            (surface.get_width() // 2 - title_text.get_width() // 2, title_y),
+        )
+
+        # Renderiza slots
+        self._render_slots(surface)
+
+        # Renderiza botões principais
+        for btn in self.buttons:
+            btn.render(surface)
+
+        # Renderiza botões dos slots
+        for buttons in self.slot_action_buttons.values():
+            for btn in buttons.values():
+                if btn:
+                    btn.render(surface)
+
+        # Renderiza modal de confirmação
+        if self.confirm_button:
+            self._render_confirm_modal(surface)
+
+    def _render_slots(self, surface):
+        """Renderiza os cards dos slots"""
+        slot_w = int(self.base_w * self.slot_width_pct)
+        slot_h = int(self.base_h * self.slot_height_pct)
+        spacing_x = int(self.base_w * self.spacing_x_pct)
+        spacing_y = int(self.base_h * self.spacing_y_pct)
+
+        total_grid_w = (2 * slot_w) + spacing_x
+        start_x = (self.base_w - total_grid_w) // 2
+        start_y = int(self.base_h * 0.20)
+
+        for i, slot in enumerate(self.game_slots):
+            col = i % 2
+            row = i // 2
+
+            base_x = start_x + col * (slot_w + spacing_x)
+            base_y = start_y + row * (slot_h + spacing_y)
+
+            slot_rect = self.ui_scaler.rect(base_x, base_y, slot_w, slot_h)
+
+            # Fundo do slot
+            is_empty = not slot["player_name"]
+            color = (40, 40, 50) if is_empty else (60, 70, 80)
+            border_color = (
+                self.theme.COLOR_BORDER_DEFAULT
+                if is_empty
+                else self.theme.COLOR_BORDER_ACTIVE
+            )
+
+            pygame.draw.rect(surface, color, slot_rect, border_radius=15)
+            pygame.draw.rect(surface, border_color, slot_rect, 2, border_radius=15)
+
+            # Info do slot
+            if not is_empty:
+                info_font = self.ui_scaler.get_themed_font("menu")
+                name_text = info_font.render(
+                    f"{slot['player_name']}", True, self.theme.COLOR_TEXT_PRIMARY
+                )
+                surface.blit(name_text, (slot_rect.x + 20, slot_rect.y + 20))
+
+                details_font = self.ui_scaler.get_themed_font("menu_small")
+                level_text = details_font.render(
+                    f"Nível {slot.get('player_level', 1)} - {slot.get('player_class', 'Aventureiro')}",
+                    True,
+                    self.theme.COLOR_TEXT_SECONDARY,
+                )
+                surface.blit(level_text, (slot_rect.x + 20, slot_rect.y + 60))
+            else:
+                empty_font = self.ui_scaler.get_themed_font("menu")
+                empty_text = empty_font.render(
+                    "Vazio", True, self.theme.COLOR_TEXT_HINT
+                )
+                surface.blit(
+                    empty_text,
+                    (
+                        slot_rect.centerx - empty_text.get_width() // 2,
+                        slot_rect.centery - empty_text.get_height() // 2 - 20,
+                    ),
+                )
+
+            # Número do slot
+            slot_num_font = self.ui_scaler.get_themed_font("menu_small")
+            slot_num_text = slot_num_font.render(
+                f"Slot {slot['slot_id']}", True, self.theme.COLOR_TEXT_HINT
+            )
+            surface.blit(
+                slot_num_text,
+                (slot_rect.right - slot_num_text.get_width() - 15, slot_rect.top + 10),
+            )
+
+    def _render_confirm_modal(self, surface):
+        """Renderiza o modal de confirmação"""
+        # Overlay
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        surface.blit(overlay, (0, 0))
+
+        # Box
+        box_w = 600
+        box_h = 300
+        box_x = (self.theme.BASE_WIDTH - box_w) // 2
+        box_y = (self.theme.BASE_HEIGHT - box_h) // 2
+
+        box_rect = self.ui_scaler.rect(box_x, box_y, box_w, box_h)
+
+        pygame.draw.rect(surface, self.theme.COLOR_BG_MODAL, box_rect, border_radius=20)
+        pygame.draw.rect(
+            surface, self.theme.COLOR_BORDER_WARNING, box_rect, 3, border_radius=20
+        )
+
+        # Texto
+        title_font = self.ui_scaler.get_themed_font("title")
+        title_text = title_font.render(
+            "CONFIRMAR EXCLUSÃO", True, self.theme.COLOR_TEXT_WARNING
+        )
+        surface.blit(
+            title_text,
+            (box_rect.centerx - title_text.get_width() // 2, box_rect.y + 30),
+        )
+
+        msg_font = self.ui_scaler.get_themed_font("menu")
+        msg_text = msg_font.render(
+            "Tem certeza que deseja deletar este save?",
+            True,
+            self.theme.COLOR_TEXT_PRIMARY,
+        )
+        surface.blit(
+            msg_text, (box_rect.centerx - msg_text.get_width() // 2, box_rect.y + 100)
+        )
+
+        warn_font = self.ui_scaler.get_themed_font("menu_small")
+        warn_text = warn_font.render(
+            "Esta ação não pode ser desfeita.", True, self.theme.COLOR_BUTTON_DANGER
+        )
+        surface.blit(
+            warn_text, (box_rect.centerx - warn_text.get_width() // 2, box_rect.y + 150)
+        )
+
+        if self.confirm_button:
+            self.confirm_button.render(surface)
